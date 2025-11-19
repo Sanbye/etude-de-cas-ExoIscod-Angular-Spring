@@ -35,6 +35,9 @@ public class Task {
     @Column(name = "due_date")
     private LocalDateTime dueDate;
 
+    @Column(name = "end_date")
+    private LocalDateTime endDate;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

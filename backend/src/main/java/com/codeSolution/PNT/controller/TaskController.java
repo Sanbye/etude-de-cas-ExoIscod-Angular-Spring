@@ -1,12 +1,12 @@
 package com.codeSolution.PNT.controller;
 
+import com.codeSolution.PNT.model.Task;
+import com.codeSolution.PNT.model.TaskHistory;
+import com.codeSolution.PNT.service.TaskService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import com.codeSolution.PNT.model.Task;
-import com.codeSolution.PNT.service.TaskService;
 
 import java.util.List;
 
@@ -37,27 +37,48 @@ public class TaskController {
         return ResponseEntity.ok(tasks);
     }
 
+    @GetMapping("/project/{projectId}/status/{status}")
+    public ResponseEntity<List<Task>> getTasksByProjectAndStatus(@PathVariable Long projectId, 
+                                                                 @PathVariable String status) {
+        try {
+            Task.TaskStatus taskStatus = Task.TaskStatus.valueOf(status.toUpperCase());
+            List<Task> tasks = taskService.findByProjectIdAndStatus(projectId, taskStatus);
+            return ResponseEntity.ok(tasks);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
     @GetMapping("/assigned/{userId}")
     public ResponseEntity<List<Task>> getTasksByAssignedUser(@PathVariable Long userId) {
         List<Task> tasks = taskService.findByAssignedUserId(userId);
         return ResponseEntity.ok(tasks);
     }
 
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<TaskHistory>> getTaskHistory(@PathVariable Long id) {
+        List<TaskHistory> history = taskService.getTaskHistory(id);
+        return ResponseEntity.ok(history);
+    }
+
     @PostMapping
     public ResponseEntity<Task> createTask(@RequestBody Task task) {
-        Task savedTask = taskService.save(task);
+        // Pour l'instant, on utilise un userId par défaut. Dans un vrai projet, on récupérerait l'ID depuis le token JWT
+        Long createdByUserId = 1L; // TODO: Récupérer depuis le token JWT
+        Task savedTask = taskService.save(task, createdByUserId);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedTask);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Task> updateTask(@PathVariable Long id, @RequestBody Task task) {
-        return taskService.findById(id)
-                .map(existingTask -> {
-                    task.setId(id);
-                    Task updatedTask = taskService.save(task);
-                    return ResponseEntity.ok(updatedTask);
-                })
-                .orElse(ResponseEntity.notFound().build());
+        try {
+            // Pour l'instant, on utilise un userId par défaut. Dans un vrai projet, on récupérerait l'ID depuis le token JWT
+            Long modifiedByUserId = 1L; // TODO: Récupérer depuis le token JWT
+            Task updatedTask = taskService.updateTask(id, task, modifiedByUserId);
+            return ResponseEntity.ok(updatedTask);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @DeleteMapping("/{id}")
@@ -72,7 +93,9 @@ public class TaskController {
     @PostMapping("/{taskId}/assign/{userId}")
     public ResponseEntity<Task> assignTask(@PathVariable Long taskId, @PathVariable Long userId) {
         try {
-            Task task = taskService.assignToUser(taskId, userId);
+            // Pour l'instant, on utilise un userId par défaut. Dans un vrai projet, on récupérerait l'ID depuis le token JWT
+            Long assignedByUserId = 1L; // TODO: Récupérer depuis le token JWT
+            Task task = taskService.assignToUser(taskId, userId, assignedByUserId);
             return ResponseEntity.ok(task);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();

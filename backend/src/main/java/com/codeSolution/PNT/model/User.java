@@ -26,10 +26,10 @@ public class User {
     @Column(nullable = false)
     private String email;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String firstName;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String lastName;
 
     @Column(nullable = false)
@@ -44,8 +44,8 @@ public class User {
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Project> ownedProjects = new ArrayList<>();
 
-    @ManyToMany(mappedBy = "members")
-    private List<Project> memberProjects = new ArrayList<>();
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProjectMember> projectMemberships = new ArrayList<>();
 
     @OneToMany(mappedBy = "assignedUser", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Task> assignedTasks = new ArrayList<>();

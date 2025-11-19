@@ -1,12 +1,14 @@
 package com.codeSolution.PNT.controller;
 
+import com.codeSolution.PNT.dto.InviteMemberRequest;
+import com.codeSolution.PNT.dto.UpdateMemberRoleRequest;
+import com.codeSolution.PNT.model.Project;
+import com.codeSolution.PNT.model.ProjectMember;
+import com.codeSolution.PNT.service.ProjectService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import com.codeSolution.PNT.model.Project;
-import com.codeSolution.PNT.service.ProjectService;
 
 import java.util.List;
 
@@ -43,6 +45,12 @@ public class ProjectController {
         return ResponseEntity.ok(projects);
     }
 
+    @GetMapping("/{id}/members")
+    public ResponseEntity<List<ProjectMember>> getProjectMembers(@PathVariable Long id) {
+        List<ProjectMember> members = projectService.getProjectMembers(id);
+        return ResponseEntity.ok(members);
+    }
+
     @PostMapping
     public ResponseEntity<Project> createProject(@RequestBody Project project) {
         Project savedProject = projectService.save(project);
@@ -69,13 +77,28 @@ public class ProjectController {
         return ResponseEntity.notFound().build();
     }
 
-    @PostMapping("/{projectId}/members/{userId}")
-    public ResponseEntity<Project> addMember(@PathVariable Long projectId, @PathVariable Long userId) {
+    @PostMapping("/{projectId}/invite")
+    public ResponseEntity<?> inviteMember(@PathVariable Long projectId, 
+                                         @RequestBody InviteMemberRequest request) {
         try {
-            Project project = projectService.addMember(projectId, userId);
+            // Pour l'instant, on utilise un userId par défaut. Dans un vrai projet, on récupérerait l'ID depuis le token JWT
+            Long inviterId = 1L; // TODO: Récupérer depuis le token JWT
+            Project project = projectService.inviteMemberByEmail(projectId, request, inviterId);
             return ResponseEntity.ok(project);
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{projectId}/members/{userId}/role")
+    public ResponseEntity<?> updateMemberRole(@PathVariable Long projectId, 
+                                              @PathVariable Long userId,
+                                              @RequestBody UpdateMemberRoleRequest request) {
+        try {
+            Project project = projectService.updateMemberRole(projectId, userId, request);
+            return ResponseEntity.ok(project);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
 
