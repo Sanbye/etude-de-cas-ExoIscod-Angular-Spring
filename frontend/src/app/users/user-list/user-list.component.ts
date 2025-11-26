@@ -10,8 +10,10 @@ import { User } from '../../models/user.model';
   template: `
     <div class="user-list-container">
       <h2>Liste des Utilisateurs</h2>
-      <div *ngIf="users.length === 0" class="loading">Chargement...</div>
-      <table *ngIf="users.length > 0" class="user-table">
+      <div *ngIf="loading" class="loading">Chargement...</div>
+      <div *ngIf="error" class="error">{{ error }}</div>
+      <div *ngIf="!loading && !error && users.length === 0" class="empty">Aucun utilisateur trouvé.</div>
+      <table *ngIf="!loading && !error && users.length > 0" class="user-table">
         <thead>
           <tr>
             <th>ID</th>
@@ -71,10 +73,25 @@ import { User } from '../../models/user.model';
       padding: 2rem;
       color: #7f8c8d;
     }
+    .error {
+      text-align: center;
+      padding: 2rem;
+      color: #e74c3c;
+      background-color: #f8d7da;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+    .empty {
+      text-align: center;
+      padding: 2rem;
+      color: #7f8c8d;
+    }
   `]
 })
 export class UserListComponent implements OnInit {
   users: User[] = [];
+  loading = true;
+  error: string | null = null;
   private apiUrl = 'http://localhost:8080/api/users';
 
   constructor(private http: HttpClient) {}
@@ -84,9 +101,18 @@ export class UserListComponent implements OnInit {
   }
 
   loadUsers(): void {
+    this.loading = true;
+    this.error = null;
     this.http.get<User[]>(this.apiUrl).subscribe({
-      next: (data) => this.users = data,
-      error: (err) => console.error('Erreur lors du chargement des utilisateurs:', err)
+      next: (data) => {
+        this.users = data;
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Erreur lors du chargement des utilisateurs:', err);
+        this.error = 'Impossible de charger les utilisateurs. Vérifiez que le backend est démarré.';
+        this.loading = false;
+      }
     });
   }
 }

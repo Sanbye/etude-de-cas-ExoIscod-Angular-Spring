@@ -10,8 +10,10 @@ import { Task } from '../../models/task.model';
   template: `
     <div class="task-list-container">
       <h2>Liste des Tâches</h2>
-      <div *ngIf="tasks.length === 0" class="loading">Chargement...</div>
-      <div *ngIf="tasks.length > 0" class="tasks-grid">
+      <div *ngIf="loading" class="loading">Chargement...</div>
+      <div *ngIf="error" class="error">{{ error }}</div>
+      <div *ngIf="!loading && !error && tasks.length === 0" class="empty">Aucune tâche trouvée.</div>
+      <div *ngIf="!loading && !error && tasks.length > 0" class="tasks-grid">
         <div *ngFor="let task of tasks" class="task-card">
           <h3>{{ task.title }}</h3>
           <p class="description">{{ task.description || 'Aucune description' }}</p>
@@ -98,10 +100,25 @@ import { Task } from '../../models/task.model';
       padding: 2rem;
       color: #7f8c8d;
     }
+    .error {
+      text-align: center;
+      padding: 2rem;
+      color: #e74c3c;
+      background-color: #f8d7da;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+    .empty {
+      text-align: center;
+      padding: 2rem;
+      color: #7f8c8d;
+    }
   `]
 })
 export class TaskListComponent implements OnInit {
   tasks: Task[] = [];
+  loading = true;
+  error: string | null = null;
   private apiUrl = 'http://localhost:8080/api/tasks';
 
   constructor(private http: HttpClient) {}
@@ -111,9 +128,18 @@ export class TaskListComponent implements OnInit {
   }
 
   loadTasks(): void {
+    this.loading = true;
+    this.error = null;
     this.http.get<Task[]>(this.apiUrl).subscribe({
-      next: (data) => this.tasks = data,
-      error: (err) => console.error('Erreur lors du chargement des tâches:', err)
+      next: (data) => {
+        this.tasks = data;
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Erreur lors du chargement des tâches:', err);
+        this.error = 'Impossible de charger les tâches. Vérifiez que le backend est démarré.';
+        this.loading = false;
+      }
     });
   }
 }

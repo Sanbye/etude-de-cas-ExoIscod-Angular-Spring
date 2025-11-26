@@ -10,8 +10,10 @@ import { Project } from '../../models/project.model';
   template: `
     <div class="project-list-container">
       <h2>Liste des Projets</h2>
-      <div *ngIf="projects.length === 0" class="loading">Chargement...</div>
-      <div *ngIf="projects.length > 0" class="projects-grid">
+      <div *ngIf="loading" class="loading">Chargement...</div>
+      <div *ngIf="error" class="error">{{ error }}</div>
+      <div *ngIf="!loading && !error && projects.length === 0" class="empty">Aucun projet trouvé.</div>
+      <div *ngIf="!loading && !error && projects.length > 0" class="projects-grid">
         <div *ngFor="let project of projects" class="project-card">
           <h3>{{ project.name }}</h3>
           <p class="description">{{ project.description || 'Aucune description' }}</p>
@@ -88,10 +90,25 @@ import { Project } from '../../models/project.model';
       padding: 2rem;
       color: #7f8c8d;
     }
+    .error {
+      text-align: center;
+      padding: 2rem;
+      color: #e74c3c;
+      background-color: #f8d7da;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+    .empty {
+      text-align: center;
+      padding: 2rem;
+      color: #7f8c8d;
+    }
   `]
 })
 export class ProjectListComponent implements OnInit {
   projects: Project[] = [];
+  loading = true;
+  error: string | null = null;
   private apiUrl = 'http://localhost:8080/api/projects';
 
   constructor(private http: HttpClient) {}
@@ -101,9 +118,18 @@ export class ProjectListComponent implements OnInit {
   }
 
   loadProjects(): void {
+    this.loading = true;
+    this.error = null;
     this.http.get<Project[]>(this.apiUrl).subscribe({
-      next: (data) => this.projects = data,
-      error: (err) => console.error('Erreur lors du chargement des projets:', err)
+      next: (data) => {
+        this.projects = data;
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Erreur lors du chargement des projets:', err);
+        this.error = 'Impossible de charger les projets. Vérifiez que le backend est démarré.';
+        this.loading = false;
+      }
     });
   }
 }
