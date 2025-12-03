@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { ProjectService } from '../../services/project.service';
 import { Project } from '../../models/project.model';
 
 @Component({
@@ -109,9 +109,8 @@ export class ProjectListComponent implements OnInit {
   projects: Project[] = [];
   loading = true;
   error: string | null = null;
-  private apiUrl = 'http://localhost:8080/api/projects';
 
-  constructor(private http: HttpClient) {}
+  constructor(private projectService: ProjectService) {}
 
   ngOnInit(): void {
     this.loadProjects();
@@ -120,7 +119,7 @@ export class ProjectListComponent implements OnInit {
   loadProjects(): void {
     this.loading = true;
     this.error = null;
-    this.http.get<Project[]>(this.apiUrl).subscribe({
+    this.projectService.getAllProjects().subscribe({
       next: (data) => {
         this.projects = data;
         this.loading = false;

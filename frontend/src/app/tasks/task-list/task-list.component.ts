@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { TaskService } from '../../services/task.service';
 import { Task } from '../../models/task.model';
 
 @Component({
@@ -119,9 +119,8 @@ export class TaskListComponent implements OnInit {
   tasks: Task[] = [];
   loading = true;
   error: string | null = null;
-  private apiUrl = 'http://localhost:8080/api/tasks';
 
-  constructor(private http: HttpClient) {}
+  constructor(private taskService: TaskService) {}
 
   ngOnInit(): void {
     this.loadTasks();
@@ -130,7 +129,7 @@ export class TaskListComponent implements OnInit {
   loadTasks(): void {
     this.loading = true;
     this.error = null;
-    this.http.get<Task[]>(this.apiUrl).subscribe({
+    this.taskService.getAllTasks().subscribe({
       next: (data) => {
         this.tasks = data;
         this.loading = false;

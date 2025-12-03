@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { UserService } from '../../services/user.service';
 import { User } from '../../models/user.model';
 
 @Component({
@@ -92,9 +92,8 @@ export class UserListComponent implements OnInit {
   users: User[] = [];
   loading = true;
   error: string | null = null;
-  private apiUrl = 'http://localhost:8080/api/users';
 
-  constructor(private http: HttpClient) {}
+  constructor(private userService: UserService) {}
 
   ngOnInit(): void {
     this.loadUsers();
@@ -103,7 +102,7 @@ export class UserListComponent implements OnInit {
   loadUsers(): void {
     this.loading = true;
     this.error = null;
-    this.http.get<User[]>(this.apiUrl).subscribe({
+    this.userService.getAllUsers().subscribe({
       next: (data) => {
         this.users = data;
         this.loading = false;
