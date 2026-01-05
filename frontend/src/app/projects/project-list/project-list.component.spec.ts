@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ProjectListComponent } from './project-list.component';
 import { ProjectService } from '../../services/project.service';
-import { of, throwError } from 'rxjs';
+import { of, throwError, Subject } from 'rxjs';
 import { Project, ProjectStatus } from '../../models/project.model';
 
 describe('ProjectListComponent', () => {
@@ -56,17 +56,23 @@ describe('ProjectListComponent', () => {
   });
 
   it('should display loading state', () => {
-    projectService.getAllProjects.and.returnValue(of(mockProjects));
-    component.loading = true;
-
+    const projectsSubject = new Subject<Project[]>();
+    projectService.getAllProjects.and.returnValue(projectsSubject.asObservable());
+    
     fixture.detectChanges();
-
+    expect(component.loading).toBe(true);
     const compiled = fixture.nativeElement as HTMLElement;
     const loadingElement = compiled.querySelector('.loading');
     expect(loadingElement).toBeTruthy();
+    
+    projectsSubject.next(mockProjects);
+    projectsSubject.complete();
   });
 
   it('should display error message', () => {
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    
+    fixture.detectChanges();
     component.error = 'Test error';
     component.loading = false;
 

@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TaskListComponent } from './task-list.component';
 import { TaskService } from '../../services/task.service';
-import { of, throwError } from 'rxjs';
+import { of, throwError, Subject } from 'rxjs';
 import { Task, TaskStatus, TaskPriority } from '../../models/task.model';
 
 describe('TaskListComponent', () => {
@@ -56,17 +56,23 @@ describe('TaskListComponent', () => {
   });
 
   it('should display loading state', () => {
-    taskService.getAllTasks.and.returnValue(of(mockTasks));
-    component.loading = true;
-
+    const tasksSubject = new Subject<Task[]>();
+    taskService.getAllTasks.and.returnValue(tasksSubject.asObservable());
+    
     fixture.detectChanges();
-
+    expect(component.loading).toBe(true);
     const compiled = fixture.nativeElement as HTMLElement;
     const loadingElement = compiled.querySelector('.loading');
     expect(loadingElement).toBeTruthy();
+    
+    tasksSubject.next(mockTasks);
+    tasksSubject.complete();
   });
 
   it('should display error message', () => {
+    taskService.getAllTasks.and.returnValue(of(mockTasks));
+    
+    fixture.detectChanges();
     component.error = 'Test error';
     component.loading = false;
 

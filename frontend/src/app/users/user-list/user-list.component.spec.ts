@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { UserListComponent } from './user-list.component';
 import { UserService } from '../../services/user.service';
-import { of, throwError } from 'rxjs';
+import { of, throwError, Subject } from 'rxjs';
 import { User } from '../../models/user.model';
 
 describe('UserListComponent', () => {
@@ -56,17 +56,24 @@ describe('UserListComponent', () => {
   });
 
   it('should display loading state', () => {
-    userService.getAllUsers.and.returnValue(of(mockUsers));
-    component.loading = true;
-
+    const usersSubject = new Subject<User[]>();
+    userService.getAllUsers.and.returnValue(usersSubject.asObservable());
+    
     fixture.detectChanges();
-
+    expect(component.loading).toBe(true);
     const compiled = fixture.nativeElement as HTMLElement;
     const loadingElement = compiled.querySelector('.loading');
     expect(loadingElement).toBeTruthy();
+    
+    usersSubject.next(mockUsers);
+    usersSubject.complete();
   });
 
   it('should display error message', () => {
+
+    userService.getAllUsers.and.returnValue(of(mockUsers));
+    
+    fixture.detectChanges();
     component.error = 'Test error';
     component.loading = false;
 
