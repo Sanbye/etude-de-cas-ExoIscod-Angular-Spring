@@ -54,20 +54,23 @@ jobs:
       
     - name: Run tests with coverage
       working-directory: ./frontend
-      run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage
+      run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage 2>&1 | tee test-output.log
       
     - name: Check coverage threshold (60%)
       working-directory: ./frontend
       run: |
         node -e "
         const fs = require('fs');
-        const path = 'coverage/project-management-frontend/coverage-summary.json';
-        if (!fs.existsSync(path)) {
-          console.error('Coverage report not found');
+        const output = fs.readFileSync('test-output.log', 'utf8');
+        const match = output.match(/Lines\s+:\s+(\d+)%/);
+        if (!match) {
+          console.error('Could not extract coverage from test output');
+          console.error('Last 30 lines of output:');
+          const lines = output.split('\\n');
+          console.error(lines.slice(-30).join('\\n'));
           process.exit(1);
         }
-        const data = JSON.parse(fs.readFileSync(path));
-        const coverage = data.total.lines.pct;
+        const coverage = parseInt(match[1]);
         console.log('Total coverage: ' + coverage + '%');
         if (coverage < 60) {
           console.error('Coverage is below 60% threshold (current: ' + coverage + '%)');
