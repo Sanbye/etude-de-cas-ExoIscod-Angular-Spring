@@ -22,9 +22,16 @@ jobs:
         distribution: 'temurin'
         cache: maven
         
-    - name: Run Maven tests
+    - name: Run Maven tests with coverage check
       working-directory: ./backend
-      run: chmod +x mvnw && ./mvnw test
+      run: chmod +x mvnw && ./mvnw clean test verify
+        
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: backend-coverage
+        path: backend/target/site/jacoco/**
       
   frontend-tests:
     name: Frontend Tests
@@ -45,7 +52,35 @@ jobs:
       working-directory: ./frontend
       run: npm ci
       
-    - name: Run tests
+    - name: Run tests with coverage
       working-directory: ./frontend
-      run: npm test -- --watch=false --browsers=ChromeHeadless
+      run: npm test -- --watch=false --browsers=ChromeHeadless --code-coverage
+      
+    - name: Check coverage threshold (60%)
+      working-directory: ./frontend
+      run: |
+        node -e "
+        const fs = require('fs');
+        const path = 'coverage/project-management-frontend/coverage-summary.json';
+        if (!fs.existsSync(path)) {
+          console.error('Coverage report not found');
+          process.exit(1);
+        }
+        const data = JSON.parse(fs.readFileSync(path));
+        const coverage = data.total.lines.pct;
+        console.log('Total coverage: ' + coverage + '%');
+        if (coverage < 60) {
+          console.error('Coverage is below 60% threshold (current: ' + coverage + '%)');
+          process.exit(1);
+        } else {
+          console.log('Coverage check passed: ' + coverage + '% >= 60%');
+        }
+        "
+        
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: frontend-coverage
+        path: frontend/coverage/**
 
