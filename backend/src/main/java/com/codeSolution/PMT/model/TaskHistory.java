@@ -2,9 +2,7 @@ package com.codeSolution.PMT.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -12,8 +10,6 @@ import java.util.UUID;
 @Entity
 @Table(name = "task_history")
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class TaskHistory {
 
     @Id

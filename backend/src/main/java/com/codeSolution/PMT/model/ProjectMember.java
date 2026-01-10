@@ -2,17 +2,13 @@ package com.codeSolution.PMT.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
 @Entity
 @Table(name = "project_members")
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 @IdClass(ProjectMemberId.class)
 public class ProjectMember {
 
