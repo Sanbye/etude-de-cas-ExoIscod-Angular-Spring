@@ -136,6 +136,6 @@ class NotificationTest {
     @Test
     void testIsRead_DefaultValue() {
         Notification notification = new Notification();
-        assertNull(notification.getIsRead());
+        assertFalse(notification.getIsRead());
     }
 }
