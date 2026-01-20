@@ -315,12 +315,6 @@ Le workflow CI/CD (`.github/workflows/ci.yml`) effectue les actions suivantes :
    - Push les images Docker vers DockerHub
    - Tags : `<DOCKER_USERNAME>/pmt-backend:latest` et `<DOCKER_USERNAME>/pmt-frontend:latest`
 
-### Configuration requise
-
-Pour que le push Docker fonctionne, vous devez configurer les secrets GitHub suivants :
-- `DOCKER_USERNAME` : Votre nom d'utilisateur DockerHub
-- `DOCKER_PASSWORD` : Votre token d'accès DockerHub (Personal Access Token)
-
 ### Badge de statut
 
 Le badge de statut CI est affiché en haut du README. Pour l'activer, remplacez `Sanbye` dans l'URL du badge par votre nom d'utilisateur GitHub.
@@ -438,23 +432,6 @@ Le rapport sera généré dans `frontend/coverage/index.html`
 
 ## Développement
 
-### Contribution
-
-Pour contribuer au projet :
-
-1. Fork le projet
-2. Créer une branche pour votre fonctionnalité (`git checkout -b feature/ma-fonctionnalite`)
-3. Commiter vos changements (`git commit -m 'Ajout de ma fonctionnalité'`)
-4. Pousser vers la branche (`git push origin feature/ma-fonctionnalite`)
-5. Ouvrir une Pull Request
-
-### Standards de code
-
-- **Backend** : Suivre les conventions Java et Spring Boot
-- **Frontend** : Suivre les conventions Angular et TypeScript
-- **Tests** : Maintenir une couverture de code élevée (>80%)
-- **Commits** : Utiliser des messages de commit clairs et descriptifs
-
 ### Maven Wrapper
 
 Le projet utilise le **Maven Wrapper** 
@@ -466,8 +443,3 @@ Les fichiers `mvnw` (Linux/Mac) et `mvnw.cmd` (Windows) sont inclus dans le proj
 Les images Docker sont construites avec :
 - **Backend** : Multi-stage build avec Maven pour la compilation et JRE Alpine pour l'exécution
 - **Frontend** : Multi-stage build avec Node.js pour la compilation et Nginx Alpine pour servir les fichiers statiques
-
-Les images sont optimisées pour la production avec :
-- Images de base minimales (Alpine)
-- Utilisateur non-root pour la sécurité
-- Cache des dépendances pour des builds plus rapides
