@@ -9,6 +9,7 @@ Application web de gestion de projets développée avec Angular (frontend) et Sp
 - **Backend**: Spring Boot 3.2.0 avec Java 17
 - **Frontend**: Angular 17
 - **Base de données**: PostgreSQL
+- **Containerisation**: Docker avec images disponibles sur DockerHub
 
 ## Structure du projet
 
@@ -16,40 +17,51 @@ Application web de gestion de projets développée avec Angular (frontend) et Sp
 .
 ├── .github/
 │   └── workflows/
-│       └── ci.yml         # Configuration CI/CD GitHub Actions
-├── backend/                 # Application Spring Boot
+│       └── ci.yml                    # Configuration CI/CD GitHub Actions
+├── backend/                          # Application Spring Boot
+│   ├── .mvn/
+│   │   └── wrapper/
+│   │       └── maven-wrapper.properties  # Configuration Maven Wrapper
 │   ├── src/
 │   │   ├── main/
 │   │   │   ├── java/
 │   │   │   │   └── com/codeSolution/PMT/
 │   │   │   │       ├── model/          # Entités JPA
-│   │   │   │       ├── repository/     # Repositories Spring Data
+│   │   │   │       ├── repository/    # Repositories Spring Data
 │   │   │   │       ├── service/        # Services métier
 │   │   │   │       ├── controller/     # Contrôleurs REST
-│   │   │   │       └── config/         # Configurations
+│   │   │   │       ├── config/         # Configurations
+│   │   │   │       └── dto/            # Data Transfer Objects
 │   │   │   └── resources/
 │   │   │       └── application.properties
-│   │   └── test/           # Tests unitaires et d'intégration
+│   │   └── test/                      # Tests unitaires et d'intégration
 │   │       ├── java/
 │   │       │   └── com/codeSolution/PMT/
 │   │       │       ├── service/        # Tests unitaires des services
-│   │       │       └── repository/     # Tests d'intégration des repositories
+│   │       │       ├── repository/     # Tests d'intégration des repositories
+│   │       │       └── controller/     # Tests d'intégration des contrôleurs
 │   │       └── resources/
 │   │           └── application-test.properties
+│   ├── Dockerfile                     # Image Docker pour le backend
+│   ├── .dockerignore                  # Fichiers exclus du build Docker
+│   ├── mvnw                           # Maven Wrapper (Linux/Mac)
+│   ├── mvnw.cmd                        # Maven Wrapper (Windows)
 │   └── pom.xml
-├── frontend/               # Application Angular
+├── frontend/                          # Application Angular
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── models/     # Modèles TypeScript
-│   │   │   ├── services/   # Services Angular
-│   │   │   ├── users/      # Module utilisateurs
-│   │   │   ├── projects/   # Module projets
-│   │   │   └── tasks/      # Module tâches
+│   │   │   ├── models/                # Modèles TypeScript
+│   │   │   ├── services/               # Services Angular
+│   │   │   ├── users/                  # Module utilisateurs
+│   │   │   ├── projects/               # Module projets
+│   │   │   └── tasks/                  # Module tâches
 │   │   └── styles.css
+│   ├── Dockerfile                      # Image Docker pour le frontend
+│   ├── .dockerignore                  # Fichiers exclus du build Docker
 │   └── package.json
-└── database/              # Scripts SQL
-    ├── schema.sql         # Schéma de la base de données
-    └── data.sql           # Données de test
+└── database/                          # Scripts SQL
+    ├── schema.sql                      # Schéma de la base de données
+    └── data.sql                        # Données de test
 ```
 
 ## Entités principales
@@ -74,14 +86,22 @@ Application web de gestion de projets développée avec Angular (frontend) et Sp
 
 ## Prérequis
 
-- Java 17 ou supérieur
-- Maven 3.6+
-- Node.js 18+ et npm
-- PostgreSQL 12+
+### Pour le développement local
+
+- **Java 17** ou supérieur
+- **Maven 3.6+** (ou utilisation du Maven Wrapper inclus)
+- **Node.js 18+** et npm
+- **PostgreSQL 12+**
+
+### Pour Docker
+
+- **Docker**
 
 ## Installation et démarrage
 
-### Base de données
+### Option 1 : Développement local
+
+#### Base de données
 
 1. Créer la base de données PostgreSQL :
 ```sql
@@ -94,14 +114,16 @@ psql -U postgres -d project_management -f database/schema.sql
 psql -U postgres -d project_management -f database/data.sql
 ```
 
-### Backend
+#### Backend
 
 1. Naviguer vers le dossier backend :
 ```bash
 cd backend
 ```
 
-2. Installer les dépendances et compiler :
+2. Le projet utilise le **Maven Wrapper** (`mvnw`/`mvnw.cmd`), donc vous n'avez pas besoin d'installer Maven globalement. Le wrapper détecte automatiquement Java 17.
+
+3. Installer les dépendances et compiler :
 ```bash
 # Sur Windows (PowerShell)
 .\mvnw.cmd clean install
@@ -110,7 +132,7 @@ cd backend
 ./mvnw clean install
 ```
 
-3. Lancer l'application :
+4. Lancer l'application :
 ```bash
 # Sur Windows (PowerShell)
 .\mvnw.cmd spring-boot:run
@@ -119,11 +141,11 @@ cd backend
 ./mvnw spring-boot:run
 ```
 
-**Note**: Le projet utilise le Maven Wrapper (`mvnw`), donc vous n'avez pas besoin d'installer Maven globalement. Si vous avez Maven installé, vous pouvez aussi utiliser `mvn` directement.
+**Note**: Le Maven Wrapper détecte automatiquement Java 17. Si vous avez plusieurs versions de Java installées, assurez-vous que Java 17 est disponible dans votre PATH ou définissez `JAVA_HOME` manuellement.
 
 Le backend sera accessible sur `http://localhost:8080`
 
-### Frontend
+#### Frontend
 
 1. Naviguer vers le dossier frontend :
 ```bash
@@ -141,6 +163,103 @@ npm start
 ```
 
 Le frontend sera accessible sur `http://localhost:4200`
+
+### Option 2 : Docker
+
+#### Prérequis
+
+- Docker installé et en cours d'exécution
+- Accès à DockerHub pour pull les images (ou build local)
+
+#### Méthode 1 : Utiliser les images DockerHub
+
+Les images Docker sont automatiquement construites et poussées sur DockerHub lors des push sur la branche `main`.
+
+1. **Pull les images Docker** :
+```bash
+docker pull gossandev/pmt-backend:latest
+docker pull gossandev/pmt-frontend:latest
+```
+
+2. **Créer un réseau Docker** (pour la communication entre conteneurs) :
+```bash
+docker network create pmt-network
+```
+
+3. **Lancer un conteneur PostgreSQL** :
+```bash
+docker run -d \
+  --name pmt-postgres \
+  --network pmt-network \
+  -e POSTGRES_DB=project_management \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -p 5432:5432 \
+  postgres:15-alpine
+```
+
+4. **Initialiser la base de données** :
+```bash
+# Attendre quelques secondes que PostgreSQL démarre
+sleep 5
+
+# Exécuter les scripts SQL
+docker exec -i pmt-postgres psql -U postgres -d project_management < database/schema.sql
+docker exec -i pmt-postgres psql -U postgres -d project_management < database/data.sql
+```
+
+5. **Lancer le backend** :
+```bash
+docker run -d \
+  --name pmt-backend \
+  --network pmt-network \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://pmt-postgres:5432/project_management \
+  -e SPRING_DATASOURCE_USERNAME=postgres \
+  -e SPRING_DATASOURCE_PASSWORD=postgres \
+  -e SERVER_PORT=3000 \
+  -p 3000:3000 \
+  <DOCKER_USERNAME>/pmt-backend:latest
+```
+
+Le backend Docker sera accessible sur `http://localhost:3000`
+
+6. **Lancer le frontend** :
+```bash
+docker run -d \
+  --name pmt-frontend \
+  --network pmt-network \
+  -p 4200:8080 \
+  <DOCKER_USERNAME>/pmt-frontend:latest
+```
+
+Le frontend Docker sera accessible sur `http://localhost:4200`
+
+#### Méthode 2 : Build local des images Docker
+
+Si vous préférez construire les images localement :
+
+1. **Build l'image backend** :
+```bash
+cd backend
+docker build -t pmt-backend:latest .
+cd ..
+```
+
+2. **Build l'image frontend** :
+```bash
+cd frontend
+docker build -t pmt-frontend:latest .
+cd ..
+```
+
+3. **Suivre les étapes 2-6 de la Méthode 1** en remplaçant `<DOCKER_USERNAME>/pmt-backend:latest` par `pmt-backend:latest` et `<DOCKER_USERNAME>/pmt-frontend:latest` par `pmt-frontend:latest`.
+
+#### Arrêter les conteneurs
+
+```bash
+docker stop pmt-backend pmt-frontend pmt-postgres
+docker rm pmt-backend pmt-frontend pmt-postgres
+```
 
 ## API Endpoints
 
@@ -165,25 +284,46 @@ Le frontend sera accessible sur `http://localhost:4200`
 - `PUT /api/tasks/{id}` - Mettre à jour une tâche
 - `DELETE /api/tasks/{id}` - Supprimer une tâche
 
+### Authentication
+- `POST /api/auth/register` - S'inscrire
+- `POST /api/auth/login` - Se connecter
+
 ## CI/CD
 
-Le projet utilise GitHub Actions pour l'intégration continue. Le workflow CI s'exécute automatiquement sur chaque push et pull request vers la branche `main`.
+Le projet utilise GitHub Actions pour l'intégration continue et le déploiement continu. Le workflow CI/CD s'exécute automatiquement sur chaque push et pull request vers la branche `main`.
 
-### Workflow CI
+### Workflow CI/CD
 
-Le workflow CI (`.github/workflows/ci.yml`) effectue les actions suivantes :
+Le workflow CI/CD (`.github/workflows/ci.yml`) effectue les actions suivantes :
 
 1. **Tests Backend** : Exécute les tests unitaires et d'intégration avec Maven
    - Utilise Java 17
-   - Exécute `mvnw test` dans le dossier `backend`
+   - Exécute `./mvnw test` dans le dossier `backend`
+   - Génère un rapport de couverture de code
 
 2. **Tests Frontend** : Exécute les tests unitaires Angular
    - Utilise Node.js 18
    - Exécute `npm test` avec ChromeHeadless dans le dossier `frontend`
+   - Génère un rapport de couverture de code
+
+3. **Build Docker Images** (uniquement sur push vers `main`) :
+   - Construit les images Docker pour le backend et le frontend
+   - Utilise le cache Docker pour optimiser les builds
+   - Vérifie que les images se construisent correctement
+
+4. **Push Docker Images** (uniquement sur push vers `main`) :
+   - Push les images Docker vers DockerHub
+   - Tags : `<DOCKER_USERNAME>/pmt-backend:latest` et `<DOCKER_USERNAME>/pmt-frontend:latest`
+
+### Configuration requise
+
+Pour que le push Docker fonctionne, vous devez configurer les secrets GitHub suivants :
+- `DOCKER_USERNAME` : Votre nom d'utilisateur DockerHub
+- `DOCKER_PASSWORD` : Votre token d'accès DockerHub (Personal Access Token)
 
 ### Badge de statut
 
-Le badge de statut CI est affiché en haut du README. Pour l'activer, remplacez `votre-username` dans l'URL du badge par votre nom d'utilisateur GitHub.
+Le badge de statut CI est affiché en haut du README. Pour l'activer, remplacez `Sanbye` dans l'URL du badge par votre nom d'utilisateur GitHub.
 
 ## Tests
 
@@ -196,6 +336,7 @@ Les tests backend utilisent :
 - **Mockito** pour le mocking des dépendances
 - **H2 Database** en mémoire pour les tests d'intégration des repositories
 - **Spring Boot Test** pour l'intégration avec Spring
+- **JaCoCo** pour la couverture de code
 
 #### Structure des tests backend
 
@@ -207,6 +348,9 @@ Les tests backend utilisent :
 
 - **Tests d'intégration des repositories** : `backend/src/test/java/com/codeSolution/PMT/repository/`
   - `UserRepositoryTest.java` - Tests du repository utilisateur
+
+- **Tests d'intégration des contrôleurs** : `backend/src/test/java/com/codeSolution/PMT/controller/`
+  - Tests des endpoints REST
 
 #### Exécuter les tests backend
 
@@ -271,7 +415,12 @@ Pour générer un rapport de couverture avec Maven, vous pouvez utiliser JaCoCo 
 
 ```bash
 cd backend
+
+# Sur Windows (PowerShell)
 .\mvnw.cmd clean test jacoco:report
+
+# Sur Linux/Mac
+./mvnw clean test jacoco:report
 ```
 
 Le rapport sera généré dans `backend/target/site/jacoco/index.html`
@@ -306,10 +455,19 @@ Pour contribuer au projet :
 - **Tests** : Maintenir une couverture de code élevée (>80%)
 - **Commits** : Utiliser des messages de commit clairs et descriptifs
 
-### Fonctionnalités à venir
+### Maven Wrapper
 
-- Interface utilisateur complète avec formulaires CRUD
-- Authentification JWT complète
-- Dockerisation de l'application
-- Déploiement automatisé avec GitHub Actions
+Le projet utilise le **Maven Wrapper** 
 
+Les fichiers `mvnw` (Linux/Mac) et `mvnw.cmd` (Windows) sont inclus dans le projet et doivent être commités dans Git.
+
+### Docker
+
+Les images Docker sont construites avec :
+- **Backend** : Multi-stage build avec Maven pour la compilation et JRE Alpine pour l'exécution
+- **Frontend** : Multi-stage build avec Node.js pour la compilation et Nginx Alpine pour servir les fichiers statiques
+
+Les images sont optimisées pour la production avec :
+- Images de base minimales (Alpine)
+- Utilisateur non-root pour la sécurité
+- Cache des dépendances pour des builds plus rapides
