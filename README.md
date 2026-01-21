@@ -187,6 +187,8 @@ docker network create pmt-network
 ```
 
 3. **Lancer un conteneur PostgreSQL** :
+
+**Sur Linux/Mac (bash)** :
 ```bash
 docker run -d \
   --name pmt-postgres \
@@ -198,17 +200,28 @@ docker run -d \
   postgres:15-alpine
 ```
 
-4. **Initialiser la base de données** :
-```bash
-# Attendre quelques secondes que PostgreSQL démarre
-sleep 5
+**Sur Windows (PowerShell)** :
+```powershell
+docker run -d --name pmt-postgres --network pmt-network -e POSTGRES_DB=project_management -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:15-alpine
+```
 
-# Exécuter les scripts SQL
+4. **Initialiser la base de données** :
+
+**Sur Linux/Mac (bash)** :
+```bash
 docker exec -i pmt-postgres psql -U postgres -d project_management < database/schema.sql
 docker exec -i pmt-postgres psql -U postgres -d project_management < database/data.sql
 ```
 
+**Sur Windows (PowerShell)** :
+```powershell
+Get-Content database/schema.sql | docker exec -i pmt-postgres psql -U postgres -d project_management
+Get-Content database/data.sql | docker exec -i pmt-postgres psql -U postgres -d project_management
+```
+
 5. **Lancer le backend** :
+
+**Sur Linux/Mac (bash)** :
 ```bash
 docker run -d \
   --name pmt-backend \
@@ -218,18 +231,30 @@ docker run -d \
   -e SPRING_DATASOURCE_PASSWORD=postgres \
   -e SERVER_PORT=3000 \
   -p 3000:3000 \
-  <DOCKER_USERNAME>/pmt-backend:latest
+  gossandev/pmt-backend:latest
+```
+
+**Sur Windows (PowerShell)** :
+```powershell
+docker run -d --name pmt-backend --network pmt-network -e SPRING_DATASOURCE_URL=jdbc:postgresql://pmt-postgres:5432/project_management -e SPRING_DATASOURCE_USERNAME=postgres -e SPRING_DATASOURCE_PASSWORD=postgres -e SERVER_PORT=3000 -p 3000:3000 gossandev/pmt-backend:latest
 ```
 
 Le backend Docker sera accessible sur `http://localhost:3000`
 
 6. **Lancer le frontend** :
+
+**Sur Linux/Mac (bash)** :
 ```bash
 docker run -d \
   --name pmt-frontend \
   --network pmt-network \
   -p 4200:8080 \
-  <DOCKER_USERNAME>/pmt-frontend:latest
+  gossandev/pmt-frontend:latest
+```
+
+**Sur Windows (PowerShell)** :
+```powershell
+docker run -d --name pmt-frontend --network pmt-network -p 4200:8080 gossandev/pmt-frontend:latest
 ```
 
 Le frontend Docker sera accessible sur `http://localhost:4200`
@@ -239,20 +264,38 @@ Le frontend Docker sera accessible sur `http://localhost:4200`
 Si vous préférez construire les images localement :
 
 1. **Build l'image backend** :
+
+**Sur Linux/Mac (bash)** :
 ```bash
 cd backend
 docker build -t pmt-backend:latest .
 cd ..
 ```
 
+**Sur Windows (PowerShell)** :
+```powershell
+cd backend
+docker build -t pmt-backend:latest .
+cd ..
+```
+
 2. **Build l'image frontend** :
+
+**Sur Linux/Mac (bash)** :
 ```bash
 cd frontend
 docker build -t pmt-frontend:latest .
 cd ..
 ```
 
-3. **Suivre les étapes 2-6 de la Méthode 1** en remplaçant `<DOCKER_USERNAME>/pmt-backend:latest` par `pmt-backend:latest` et `<DOCKER_USERNAME>/pmt-frontend:latest` par `pmt-frontend:latest`.
+**Sur Windows (PowerShell)** :
+```powershell
+cd frontend
+docker build -t pmt-frontend:latest .
+cd ..
+```
+
+3. **Suivre les étapes 2-6 de la Méthode 1** en remplaçant `gossandev/pmt-backend:latest` par `pmt-backend:latest` et `gossandev/pmt-frontend:latest` par `pmt-frontend:latest`.
 
 #### Arrêter les conteneurs
 
@@ -313,7 +356,7 @@ Le workflow CI/CD (`.github/workflows/ci.yml`) effectue les actions suivantes :
 
 4. **Push Docker Images** (uniquement sur push vers `main`) :
    - Push les images Docker vers DockerHub
-   - Tags : `<DOCKER_USERNAME>/pmt-backend:latest` et `<DOCKER_USERNAME>/pmt-frontend:latest`
+   - Tags : `gossandev/pmt-backend:latest` et `gossandev/pmt-frontend:latest`
 
 ### Badge de statut
 

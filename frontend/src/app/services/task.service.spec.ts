@@ -6,7 +6,7 @@ import { Task, TaskStatus, TaskPriority } from '../models/task.model';
 describe('TaskService', () => {
   let service: TaskService;
   let httpMock: HttpTestingController;
-  const apiUrl = 'http://localhost:8080/api/tasks';
+  const apiUrl = 'http://localhost:3000/api/tasks';
 
   beforeEach(() => {
     TestBed.configureTestingModule({

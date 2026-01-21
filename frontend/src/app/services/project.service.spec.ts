@@ -6,7 +6,7 @@ import { Project, ProjectStatus } from '../models/project.model';
 describe('ProjectService', () => {
   let service: ProjectService;
   let httpMock: HttpTestingController;
-  const apiUrl = 'http://localhost:8080/api/projects';
+  const apiUrl = 'http://localhost:3000/api/projects';
 
   beforeEach(() => {
     TestBed.configureTestingModule({
