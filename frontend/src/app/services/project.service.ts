@@ -31,5 +31,13 @@ export class ProjectService {
   deleteProject(id: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
+
+  inviteMember(projectId: string, request: { email: string; role: string }): Observable<Project> {
+    return this.http.post<Project>(`${this.apiUrl}/${projectId}/invite`, request);
+  }
+
+  getProjectMembers(projectId: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/${projectId}/members`);
+  }
 }
 

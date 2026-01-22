@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.codeSolution.PMT.dto.InviteMemberRequest;
+import com.codeSolution.PMT.dto.ProjectMemberDTO;
 import com.codeSolution.PMT.dto.UpdateMemberRoleRequest;
 import com.codeSolution.PMT.model.Project;
 import com.codeSolution.PMT.model.ProjectMember;
@@ -18,6 +19,7 @@ import com.codeSolution.PMT.repository.UserRepository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -61,6 +63,13 @@ public class ProjectService {
     public Project inviteMemberByEmail(UUID projectId, InviteMemberRequest request, UUID inviterId) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new RuntimeException("Project not found"));
+        
+        ProjectMember inviterMember = projectMemberRepository.findByProjectIdAndUserId(projectId, inviterId)
+                .orElseThrow(() -> new RuntimeException("You are not a member of this project"));
+        
+        if (inviterMember.getRole() != Role.ADMIN) {
+            throw new RuntimeException("Only project administrators can invite members");
+        }
         
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User with email " + request.getEmail() + " not found"));
@@ -117,6 +126,23 @@ public class ProjectService {
 
     public List<ProjectMember> getProjectMembers(UUID projectId) {
         return projectMemberRepository.findByProjectId(projectId);
+    }
+
+    public List<ProjectMemberDTO> getProjectMembersWithUserInfo(UUID projectId) {
+        List<ProjectMember> members = projectMemberRepository.findByProjectId(projectId);
+        return members.stream()
+                .map(member -> {
+                    User user = userRepository.findById(member.getUserId())
+                            .orElse(null);
+                    return new ProjectMemberDTO(
+                            member.getProjectId(),
+                            member.getUserId(),
+                            user != null ? user.getEmail() : null,
+                            user != null ? user.getUserName() : null,
+                            member.getRole()
+                    );
+                })
+                .collect(Collectors.toList());
     }
 }
 

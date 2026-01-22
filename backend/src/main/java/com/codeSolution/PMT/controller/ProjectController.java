@@ -6,9 +6,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.codeSolution.PMT.dto.InviteMemberRequest;
+import com.codeSolution.PMT.dto.ProjectMemberDTO;
 import com.codeSolution.PMT.dto.UpdateMemberRoleRequest;
 import com.codeSolution.PMT.model.Project;
-import com.codeSolution.PMT.model.ProjectMember;
 import com.codeSolution.PMT.service.ProjectService;
 import com.codeSolution.PMT.util.SecurityUtil;
 
@@ -42,8 +42,8 @@ public class ProjectController {
     }
 
     @GetMapping("/{id}/members")
-    public ResponseEntity<List<ProjectMember>> getProjectMembers(@PathVariable UUID id) {
-        List<ProjectMember> members = projectService.getProjectMembers(id);
+    public ResponseEntity<List<ProjectMemberDTO>> getProjectMembers(@PathVariable UUID id) {
+        List<ProjectMemberDTO> members = projectService.getProjectMembersWithUserInfo(id);
         return ResponseEntity.ok(members);
     }
 

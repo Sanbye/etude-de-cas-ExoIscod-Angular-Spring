@@ -3,6 +3,7 @@ import { TaskListComponent } from './task-list.component';
 import { TaskService } from '../../services/task.service';
 import { of, throwError, Subject } from 'rxjs';
 import { Task, TaskStatus, TaskPriority } from '../../models/task.model';
+import { provideRouter } from '@angular/router';
 
 describe('TaskListComponent', () => {
   let component: TaskListComponent;
@@ -20,7 +21,8 @@ describe('TaskListComponent', () => {
     await TestBed.configureTestingModule({
       imports: [TaskListComponent],
       providers: [
-        { provide: TaskService, useValue: taskServiceSpy }
+        { provide: TaskService, useValue: taskServiceSpy },
+        provideRouter([])
       ]
     }).compileComponents();
 

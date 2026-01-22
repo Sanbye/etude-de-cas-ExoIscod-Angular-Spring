@@ -1,21 +1,39 @@
 import { TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { UserService } from './user.service';
 import { User } from '../models/user.model';
 import { environment } from '../../environments/environment';
+import { SessionService } from './session.service';
+import { AuthResponse } from '../models/auth.model';
+import { authInterceptor } from '../interceptors/auth.interceptor';
 
 describe('UserService', () => {
   let service: UserService;
   let httpMock: HttpTestingController;
+  let sessionService: SessionService;
   const apiUrl = `${environment.apiUrl}/users`;
+  const mockUser: AuthResponse = {
+    userId: 'test-user-id',
+    username: 'testuser',
+    email: 'test@example.com',
+    token: null
+  };
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [UserService]
+      providers: [
+        UserService,
+        SessionService,
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClientTesting()
+      ]
     });
     service = TestBed.inject(UserService);
     httpMock = TestBed.inject(HttpTestingController);
+    sessionService = TestBed.inject(SessionService);
+    // Mock un utilisateur connecté
+    sessionService.setCurrentUser(mockUser);
   });
 
   afterEach(() => {
@@ -39,19 +57,21 @@ describe('UserService', () => {
 
     const req = httpMock.expectOne(apiUrl);
     expect(req.request.method).toBe('GET');
+    expect(req.request.headers.get('X-User-Id')).toBe(mockUser.userId);
     req.flush(mockUsers);
   });
 
   it('should get user by id', () => {
-    const mockUser: User = { id: '1', userName: 'user1', email: 'user1@example.com' };
+    const mockUserData: User = { id: '1', userName: 'user1', email: 'user1@example.com' };
 
     service.getUserById('1').subscribe(user => {
-      expect(user).toEqual(mockUser);
+      expect(user).toEqual(mockUserData);
     });
 
     const req = httpMock.expectOne(`${apiUrl}/1`);
     expect(req.request.method).toBe('GET');
-    req.flush(mockUser);
+    expect(req.request.headers.get('X-User-Id')).toBe(mockUser.userId);
+    req.flush(mockUserData);
   });
 
   it('should create a user', () => {
@@ -64,6 +84,7 @@ describe('UserService', () => {
 
     const req = httpMock.expectOne(apiUrl);
     expect(req.request.method).toBe('POST');
+    expect(req.request.headers.get('X-User-Id')).toBe(mockUser.userId);
     expect(req.request.body).toEqual(newUser);
     req.flush(createdUser);
   });
@@ -77,6 +98,7 @@ describe('UserService', () => {
 
     const req = httpMock.expectOne(`${apiUrl}/1`);
     expect(req.request.method).toBe('PUT');
+    expect(req.request.headers.get('X-User-Id')).toBe(mockUser.userId);
     expect(req.request.body).toEqual(updatedUser);
     req.flush(updatedUser);
   });
@@ -88,6 +110,7 @@ describe('UserService', () => {
 
     const req = httpMock.expectOne(`${apiUrl}/1`);
     expect(req.request.method).toBe('DELETE');
+    expect(req.request.headers.get('X-User-Id')).toBe(mockUser.userId);
     req.flush(null);
   });
 });

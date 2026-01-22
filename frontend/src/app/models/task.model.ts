@@ -20,3 +20,8 @@ export enum TaskPriority {
   HIGH = 'HIGH'
 }
 
+export enum Role {
+  ADMIN = 'ADMIN',
+  MEMBER = 'MEMBER',
+  OBSERVER = 'OBSERVER'
+}

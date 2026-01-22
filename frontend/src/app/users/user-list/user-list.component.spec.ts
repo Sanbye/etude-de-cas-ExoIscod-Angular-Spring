@@ -3,6 +3,7 @@ import { UserListComponent } from './user-list.component';
 import { UserService } from '../../services/user.service';
 import { of, throwError, Subject } from 'rxjs';
 import { User } from '../../models/user.model';
+import { provideRouter } from '@angular/router';
 
 describe('UserListComponent', () => {
   let component: UserListComponent;
@@ -20,7 +21,8 @@ describe('UserListComponent', () => {
     await TestBed.configureTestingModule({
       imports: [UserListComponent],
       providers: [
-        { provide: UserService, useValue: userServiceSpy }
+        { provide: UserService, useValue: userServiceSpy },
+        provideRouter([])
       ]
     }).compileComponents();
 

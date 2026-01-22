@@ -3,6 +3,7 @@ import { ProjectListComponent } from './project-list.component';
 import { ProjectService } from '../../services/project.service';
 import { of, throwError, Subject } from 'rxjs';
 import { Project } from '../../models/project.model';
+import { provideRouter } from '@angular/router';
 
 describe('ProjectListComponent', () => {
   let component: ProjectListComponent;
@@ -20,7 +21,8 @@ describe('ProjectListComponent', () => {
     await TestBed.configureTestingModule({
       imports: [ProjectListComponent],
       providers: [
-        { provide: ProjectService, useValue: projectServiceSpy }
+        { provide: ProjectService, useValue: projectServiceSpy },
+        provideRouter([])
       ]
     }).compileComponents();
 

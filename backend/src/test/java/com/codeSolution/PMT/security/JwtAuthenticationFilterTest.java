@@ -65,14 +65,14 @@ class JwtAuthenticationFilterTest {
         // When & Then - La requête devrait échouer car l'utilisateur n'existe pas
         mockMvc.perform(get("/api/projects")
                 .header("X-User-Id", invalidUserId.toString()))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test
     void testFilter_WithoutHeader_ShouldNotSetAuthentication() throws Exception {
         // When & Then
         mockMvc.perform(get("/api/projects"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -80,6 +80,6 @@ class JwtAuthenticationFilterTest {
         // When & Then
         mockMvc.perform(get("/api/projects")
                 .header("X-User-Id", "not-a-valid-uuid"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 }

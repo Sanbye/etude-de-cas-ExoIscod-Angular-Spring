@@ -1,9 +1,9 @@
 package com.codeSolution.PMT.controller;
 
 import com.codeSolution.PMT.dto.InviteMemberRequest;
+import com.codeSolution.PMT.dto.ProjectMemberDTO;
 import com.codeSolution.PMT.dto.UpdateMemberRoleRequest;
 import com.codeSolution.PMT.model.Project;
-import com.codeSolution.PMT.model.ProjectMember;
 import com.codeSolution.PMT.model.Role;
 import com.codeSolution.PMT.service.ProjectService;
 import com.codeSolution.PMT.util.SecurityUtil;
@@ -118,20 +118,18 @@ class ProjectControllerTest {
     @Test
     void testGetProjectMembers() {
         // Given
-        ProjectMember member = new ProjectMember();
-        member.setProjectId(projectId);
-        member.setUserId(userId);
-        List<ProjectMember> members = Arrays.asList(member);
-        when(projectService.getProjectMembers(projectId)).thenReturn(members);
+        ProjectMemberDTO memberDTO = new ProjectMemberDTO(projectId, userId, "user@example.com", "testuser", Role.MEMBER);
+        List<ProjectMemberDTO> members = Arrays.asList(memberDTO);
+        when(projectService.getProjectMembersWithUserInfo(projectId)).thenReturn(members);
 
         // When
-        ResponseEntity<List<ProjectMember>> response = projectController.getProjectMembers(projectId);
+        ResponseEntity<List<ProjectMemberDTO>> response = projectController.getProjectMembers(projectId);
 
         // Then
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
-        verify(projectService, times(1)).getProjectMembers(projectId);
+        verify(projectService, times(1)).getProjectMembersWithUserInfo(projectId);
     }
 
     @Test
@@ -246,37 +244,47 @@ class ProjectControllerTest {
     @Test
     void testInviteMember_Success() {
         // Given
+        UUID inviterId = UUID.randomUUID();
         InviteMemberRequest request = new InviteMemberRequest();
         request.setEmail("newuser@example.com");
         request.setRole(Role.MEMBER);
         when(projectService.inviteMemberByEmail(any(UUID.class), any(InviteMemberRequest.class), any(UUID.class)))
                 .thenReturn(testProject);
 
-        // When
-        ResponseEntity<?> response = projectController.inviteMember(projectId, request);
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(inviterId);
 
-        // Then
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        verify(projectService, times(1)).inviteMemberByEmail(any(UUID.class), any(InviteMemberRequest.class), any(UUID.class));
+            // When
+            ResponseEntity<?> response = projectController.inviteMember(projectId, request);
+
+            // Then
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertNotNull(response.getBody());
+            verify(projectService, times(1)).inviteMemberByEmail(any(UUID.class), any(InviteMemberRequest.class), eq(inviterId));
+        }
     }
 
     @Test
     void testInviteMember_WhenServiceThrowsException() {
         // Given
+        UUID inviterId = UUID.randomUUID();
         InviteMemberRequest request = new InviteMemberRequest();
         request.setEmail("newuser@example.com");
         request.setRole(Role.MEMBER);
         when(projectService.inviteMemberByEmail(any(UUID.class), any(InviteMemberRequest.class), any(UUID.class)))
                 .thenThrow(new RuntimeException("Project not found"));
 
-        // When
-        ResponseEntity<?> response = projectController.inviteMember(projectId, request);
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(inviterId);
 
-        // Then
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Project not found", response.getBody());
-        verify(projectService, times(1)).inviteMemberByEmail(any(UUID.class), any(InviteMemberRequest.class), any(UUID.class));
+            // When
+            ResponseEntity<?> response = projectController.inviteMember(projectId, request);
+
+            // Then
+            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+            assertEquals("Project not found", response.getBody());
+            verify(projectService, times(1)).inviteMemberByEmail(any(UUID.class), any(InviteMemberRequest.class), eq(inviterId));
+        }
     }
 
     @Test

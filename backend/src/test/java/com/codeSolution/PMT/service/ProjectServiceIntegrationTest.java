@@ -52,12 +52,10 @@ class ProjectServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        // Nettoyer la base de données
         projectMemberRepository.deleteAll();
         projectRepository.deleteAll();
         userRepository.deleteAll();
 
-        // Créer des utilisateurs
         testUser1 = new User();
         testUser1.setUserName("user1");
         testUser1.setEmail("user1@example.com");
@@ -70,11 +68,16 @@ class ProjectServiceIntegrationTest {
         testUser2.setPassword("password123");
         testUser2 = userRepository.save(testUser2);
 
-        // Créer un projet
         testProject = new Project();
         testProject.setName("Test Project");
         testProject.setDescription("Test Description");
         testProject = projectRepository.save(testProject);
+
+        ProjectMember adminMember = new ProjectMember();
+        adminMember.setProjectId(testProject.getId());
+        adminMember.setUserId(testUser1.getId());
+        adminMember.setRole(Role.ADMIN);
+        projectMemberRepository.save(adminMember);
     }
 
     @Test

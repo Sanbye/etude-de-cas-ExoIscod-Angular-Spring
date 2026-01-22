@@ -1,21 +1,39 @@
 import { TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { TaskService } from './task.service';
 import { Task, TaskStatus, TaskPriority } from '../models/task.model';
 import { environment } from '../../environments/environment';
+import { SessionService } from './session.service';
+import { AuthResponse } from '../models/auth.model';
+import { authInterceptor } from '../interceptors/auth.interceptor';
 
 describe('TaskService', () => {
   let service: TaskService;
   let httpMock: HttpTestingController;
+  let sessionService: SessionService;
   const apiUrl = `${environment.apiUrl}/tasks`;
+  const mockUser: AuthResponse = {
+    userId: 'test-user-id',
+    username: 'testuser',
+    email: 'test@example.com',
+    token: null
+  };
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [TaskService]
+      providers: [
+        TaskService,
+        SessionService,
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClientTesting()
+      ]
     });
     service = TestBed.inject(TaskService);
     httpMock = TestBed.inject(HttpTestingController);
+    sessionService = TestBed.inject(SessionService);
+    // Mock un utilisateur connecté
+    sessionService.setCurrentUser(mockUser);
   });
 
   afterEach(() => {
@@ -39,6 +57,7 @@ describe('TaskService', () => {
 
     const req = httpMock.expectOne(apiUrl);
     expect(req.request.method).toBe('GET');
+    expect(req.request.headers.get('X-User-Id')).toBe(mockUser.userId);
     req.flush(mockTasks);
   });
 
@@ -51,6 +70,7 @@ describe('TaskService', () => {
 
     const req = httpMock.expectOne(`${apiUrl}/1`);
     expect(req.request.method).toBe('GET');
+    expect(req.request.headers.get('X-User-Id')).toBe(mockUser.userId);
     req.flush(mockTask);
   });
 
@@ -64,6 +84,7 @@ describe('TaskService', () => {
 
     const req = httpMock.expectOne(apiUrl);
     expect(req.request.method).toBe('POST');
+    expect(req.request.headers.get('X-User-Id')).toBe(mockUser.userId);
     expect(req.request.body).toEqual(newTask);
     req.flush(createdTask);
   });
@@ -77,6 +98,7 @@ describe('TaskService', () => {
 
     const req = httpMock.expectOne(`${apiUrl}/1`);
     expect(req.request.method).toBe('PUT');
+    expect(req.request.headers.get('X-User-Id')).toBe(mockUser.userId);
     expect(req.request.body).toEqual(updatedTask);
     req.flush(updatedTask);
   });
@@ -88,6 +110,7 @@ describe('TaskService', () => {
 
     const req = httpMock.expectOne(`${apiUrl}/1`);
     expect(req.request.method).toBe('DELETE');
+    expect(req.request.headers.get('X-User-Id')).toBe(mockUser.userId);
     req.flush(null);
   });
 });

@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ProjectService } from '../../services/project.service';
 import { Project } from '../../models/project.model';
 
@@ -18,7 +18,7 @@ import { Project } from '../../models/project.model';
       <div *ngIf="error" class="error">{{ error }}</div>
       <div *ngIf="!loading && !error && projects.length === 0" class="empty">Aucun projet trouvé.</div>
       <div *ngIf="!loading && !error && projects.length > 0" class="projects-grid">
-        <div *ngFor="let project of projects" class="project-card">
+        <div *ngFor="let project of projects" class="project-card" (click)="viewProject(project.id!)">
           <h3>{{ project.name }}</h3>
           <p class="description">{{ project.description || 'Aucune description' }}</p>
           <div class="project-meta" *ngIf="project.startingDate">
@@ -68,6 +68,7 @@ import { Project } from '../../models/project.model';
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
     }
     .project-card:hover {
       transform: translateY(-2px);
@@ -117,7 +118,10 @@ export class ProjectListComponent implements OnInit {
   loading = true;
   error: string | null = null;
 
-  constructor(private projectService: ProjectService) {}
+  constructor(
+    private projectService: ProjectService,
+    private router: Router
+  ) {}
 
   ngOnInit(): void {
     this.loadProjects();
@@ -137,6 +141,10 @@ export class ProjectListComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  viewProject(projectId: string): void {
+    this.router.navigate(['/projects', projectId]);
   }
 }
 

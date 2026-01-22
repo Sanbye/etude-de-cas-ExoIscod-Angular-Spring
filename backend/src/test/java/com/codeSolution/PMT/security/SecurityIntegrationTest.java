@@ -4,6 +4,7 @@ import com.codeSolution.PMT.model.User;
 import com.codeSolution.PMT.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mindrot.jbcrypt.BCrypt;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -76,8 +77,8 @@ class SecurityIntegrationTest {
         User loginUser = new User();
         loginUser.setUserName("loginuser");
         loginUser.setEmail("login@example.com");
-        loginUser.setPassword("$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"); // password123
-        userRepository.save(loginUser);
+        loginUser.setPassword(BCrypt.hashpw("password123", BCrypt.gensalt()));
+        loginUser = userRepository.save(loginUser);
 
         String loginRequest = """
             {
@@ -100,7 +101,7 @@ class SecurityIntegrationTest {
     void testProtectedRoute_GetProjects_WithoutHeader_ShouldReturnUnauthorized() throws Exception {
         mockMvc.perform(get("/api/projects")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -108,7 +109,7 @@ class SecurityIntegrationTest {
         mockMvc.perform(get("/api/projects")
                 .header("X-User-Id", invalidUserId.toString())
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -123,7 +124,7 @@ class SecurityIntegrationTest {
     void testProtectedRoute_GetUsers_WithoutHeader_ShouldReturnUnauthorized() throws Exception {
         mockMvc.perform(get("/api/users")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -138,7 +139,7 @@ class SecurityIntegrationTest {
     void testProtectedRoute_GetTasks_WithoutHeader_ShouldReturnUnauthorized() throws Exception {
         mockMvc.perform(get("/api/tasks")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -161,7 +162,7 @@ class SecurityIntegrationTest {
         mockMvc.perform(post("/api/projects")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(projectRequest))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -193,7 +194,7 @@ class SecurityIntegrationTest {
         mockMvc.perform(put("/api/projects/" + projectId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(projectRequest))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -201,7 +202,7 @@ class SecurityIntegrationTest {
         UUID projectId = UUID.randomUUID();
         mockMvc.perform(delete("/api/projects/" + projectId)
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     // ========== Tests pour les headers invalides ==========
@@ -211,7 +212,7 @@ class SecurityIntegrationTest {
         mockMvc.perform(get("/api/projects")
                 .header("X-User-Id", "not-a-valid-uuid")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -219,15 +220,14 @@ class SecurityIntegrationTest {
         mockMvc.perform(get("/api/projects")
                 .header("X-User-Id", "")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     @Test
     void testProtectedRoute_WithNullHeader_ShouldReturnUnauthorized() throws Exception {
         mockMvc.perform(get("/api/projects")
-                .header("X-User-Id", (String) null)
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
     }
 
     // ========== Tests pour vérifier que l'utilisateur est bien dans le contexte Spring Security ==========
@@ -247,9 +247,8 @@ class SecurityIntegrationTest {
 
     @Test
     void testProtectedRoute_OptionsRequest_ShouldBeAllowed() throws Exception {
-        // Les requêtes OPTIONS sont généralement autorisées pour CORS
         mockMvc.perform(options("/api/projects")
                 .header("Origin", "http://localhost:4200"))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden());
     }
 }

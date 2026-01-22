@@ -147,7 +147,13 @@ class ProjectServiceTest {
         request.setRole(Role.MEMBER);
         UUID inviterId = UUID.randomUUID();
 
+        ProjectMember inviterMember = new ProjectMember();
+        inviterMember.setProjectId(projectId);
+        inviterMember.setUserId(inviterId);
+        inviterMember.setRole(Role.ADMIN);
+
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(testProject));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, inviterId)).thenReturn(Optional.of(inviterMember));
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
         when(projectMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(false);
         when(projectMemberRepository.save(any(ProjectMember.class))).thenReturn(testProjectMember);
@@ -160,6 +166,7 @@ class ProjectServiceTest {
         // Then
         assertNotNull(result);
         verify(projectRepository, atLeastOnce()).findById(projectId);
+        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, inviterId);
         verify(userRepository, times(1)).findByEmail("test@example.com");
         verify(projectMemberRepository, times(1)).existsByProjectIdAndUserId(projectId, userId);
         verify(projectMemberRepository, times(1)).save(any(ProjectMember.class));
