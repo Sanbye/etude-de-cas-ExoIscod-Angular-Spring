@@ -16,22 +16,14 @@ import { User } from '../../models/user.model';
       <table *ngIf="!loading && !error && users.length > 0" class="user-table">
         <thead>
           <tr>
-            <th>ID</th>
             <th>Nom d'utilisateur</th>
             <th>Email</th>
-            <th>Prénom</th>
-            <th>Nom</th>
-            <th>Date de création</th>
           </tr>
         </thead>
         <tbody>
           <tr *ngFor="let user of users">
-            <td>{{ user.id }}</td>
-            <td>{{ user.username }}</td>
+            <td>{{ user.userName }}</td>
             <td>{{ user.email }}</td>
-            <td>{{ user.firstName }}</td>
-            <td>{{ user.lastName }}</td>
-            <td>{{ user.createdAt | date:'short' }}</td>
           </tr>
         </tbody>
       </table>

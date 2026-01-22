@@ -91,7 +91,7 @@ Application web de gestion de projets développée avec Angular (frontend) et Sp
 - **Java 17** ou supérieur
 - **Maven 3.6+** (ou utilisation du Maven Wrapper inclus)
 - **Node.js 18+** et npm
-- **PostgreSQL 12+**
+- **PostgreSQL 18+**
 
 ### Pour Docker
 
@@ -109,6 +109,10 @@ CREATE DATABASE project_management;
 ```
 
 2. Exécuter les scripts SQL dans l'ordre :
+
+User: postgres
+Mot de passe: postgres
+
 ```bash
 psql -U postgres -d project_management -f database/schema.sql
 psql -U postgres -d project_management -f database/data.sql

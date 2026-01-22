@@ -2,11 +2,12 @@ import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { UserService } from './user.service';
 import { User } from '../models/user.model';
+import { environment } from '../../environments/environment';
 
 describe('UserService', () => {
   let service: UserService;
   let httpMock: HttpTestingController;
-  const apiUrl = 'http://localhost:3000/api/users';
+  const apiUrl = `${environment.apiUrl}/users`;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -27,8 +28,8 @@ describe('UserService', () => {
 
   it('should get all users', () => {
     const mockUsers: User[] = [
-      { id: 1, username: 'user1', email: 'user1@example.com', firstName: 'John', lastName: 'Doe' },
-      { id: 2, username: 'user2', email: 'user2@example.com', firstName: 'Jane', lastName: 'Smith' }
+      { id: '1', userName: 'user1', email: 'user1@example.com' },
+      { id: '2', userName: 'user2', email: 'user2@example.com' }
     ];
 
     service.getAllUsers().subscribe(users => {
@@ -42,7 +43,7 @@ describe('UserService', () => {
   });
 
   it('should get user by id', () => {
-    const mockUser: User = { id: 1, username: 'user1', email: 'user1@example.com', firstName: 'John', lastName: 'Doe' };
+    const mockUser: User = { id: '1', userName: 'user1', email: 'user1@example.com' };
 
     service.getUserById('1').subscribe(user => {
       expect(user).toEqual(mockUser);
@@ -54,8 +55,8 @@ describe('UserService', () => {
   });
 
   it('should create a user', () => {
-    const newUser: User = { username: 'newuser', email: 'newuser@example.com', firstName: 'New', lastName: 'User' };
-    const createdUser: User = { id: 1, ...newUser };
+    const newUser: User = { userName: 'newuser', email: 'newuser@example.com' };
+    const createdUser: User = { id: '1', ...newUser };
 
     service.createUser(newUser).subscribe(user => {
       expect(user).toEqual(createdUser);
@@ -68,7 +69,7 @@ describe('UserService', () => {
   });
 
   it('should update a user', () => {
-    const updatedUser: User = { id: 1, username: 'user1', email: 'updated@example.com', firstName: 'John', lastName: 'Doe' };
+    const updatedUser: User = { id: '1', userName: 'user1', email: 'updated@example.com' };
 
     service.updateUser('1', updatedUser).subscribe(user => {
       expect(user).toEqual(updatedUser);

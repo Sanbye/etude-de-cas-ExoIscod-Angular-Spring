@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ProjectListComponent } from './project-list.component';
 import { ProjectService } from '../../services/project.service';
 import { of, throwError, Subject } from 'rxjs';
-import { Project, ProjectStatus } from '../../models/project.model';
+import { Project } from '../../models/project.model';
 
 describe('ProjectListComponent', () => {
   let component: ProjectListComponent;
@@ -10,8 +10,8 @@ describe('ProjectListComponent', () => {
   let projectService: jasmine.SpyObj<ProjectService>;
 
   const mockProjects: Project[] = [
-    { id: 1, name: 'Project 1', description: 'Description 1', status: ProjectStatus.IN_PROGRESS },
-    { id: 2, name: 'Project 2', description: 'Description 2', status: ProjectStatus.PLANNED }
+    { id: '1', name: 'Project 1', description: 'Description 1', startingDate: '2026-01-01' },
+    { id: '2', name: 'Project 2', description: 'Description 2', startingDate: '2026-01-02' }
   ];
 
   beforeEach(async () => {

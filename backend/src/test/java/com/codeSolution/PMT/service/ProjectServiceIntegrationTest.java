@@ -8,7 +8,6 @@ import com.codeSolution.PMT.model.Role;
 import com.codeSolution.PMT.model.User;
 import com.codeSolution.PMT.repository.ProjectMemberRepository;
 import com.codeSolution.PMT.repository.ProjectRepository;
-import com.codeSolution.PMT.repository.RoleRepository;
 import com.codeSolution.PMT.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,17 +43,12 @@ class ProjectServiceIntegrationTest {
     @Autowired
     private ProjectMemberRepository projectMemberRepository;
 
-    @Autowired
-    private RoleRepository roleRepository;
-
     @MockBean
     private EmailService emailService;
 
     private User testUser1;
     private User testUser2;
     private Project testProject;
-    private Role memberRole;
-    private Role adminRole;
 
     @BeforeEach
     void setUp() {
@@ -62,16 +56,6 @@ class ProjectServiceIntegrationTest {
         projectMemberRepository.deleteAll();
         projectRepository.deleteAll();
         userRepository.deleteAll();
-        roleRepository.deleteAll();
-
-        // Créer des rôles
-        memberRole = new Role();
-        memberRole.setName(Role.RoleName.MEMBER);
-        memberRole = roleRepository.save(memberRole);
-
-        adminRole = new Role();
-        adminRole.setName(Role.RoleName.ADMIN);
-        adminRole = roleRepository.save(adminRole);
 
         // Créer des utilisateurs
         testUser1 = new User();
@@ -135,13 +119,19 @@ class ProjectServiceIntegrationTest {
         newProject.setDescription("New Description");
 
         // When
-        Project result = projectService.save(newProject);
+        Project result = projectService.save(newProject, testUser1.getId());
 
         // Then
         assertNotNull(result);
         assertNotNull(result.getId());
         assertEquals("New Project", result.getName());
         assertTrue(projectRepository.findById(result.getId()).isPresent());
+        
+        // Vérifier que le créateur est automatiquement ajouté comme ADMIN
+        Optional<ProjectMember> creatorMember = projectMemberRepository
+                .findByProjectIdAndUserId(result.getId(), testUser1.getId());
+        assertTrue(creatorMember.isPresent());
+        assertEquals(Role.ADMIN, creatorMember.get().getRole());
     }
 
     @Test
@@ -161,7 +151,7 @@ class ProjectServiceIntegrationTest {
         // Given
         InviteMemberRequest request = new InviteMemberRequest();
         request.setEmail("user2@example.com");
-        request.setRoleId(memberRole.getId());
+        request.setRole(Role.MEMBER);
 
         // When
         Project result = projectService.inviteMemberByEmail(testProject.getId(), request, testUser1.getId());
@@ -169,6 +159,10 @@ class ProjectServiceIntegrationTest {
         // Then
         assertNotNull(result);
         assertTrue(projectMemberRepository.existsByProjectIdAndUserId(testProject.getId(), testUser2.getId()));
+        Optional<ProjectMember> member = projectMemberRepository
+                .findByProjectIdAndUserId(testProject.getId(), testUser2.getId());
+        assertTrue(member.isPresent());
+        assertEquals(Role.MEMBER, member.get().getRole());
         verify(emailService).sendProjectInvitation("user2@example.com", "Test Project", "user1");
     }
 
@@ -178,7 +172,7 @@ class ProjectServiceIntegrationTest {
         UUID nonExistentProjectId = UUID.randomUUID();
         InviteMemberRequest request = new InviteMemberRequest();
         request.setEmail("user2@example.com");
-        request.setRoleId(memberRole.getId());
+        request.setRole(Role.MEMBER);
 
         // When & Then
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
@@ -194,7 +188,7 @@ class ProjectServiceIntegrationTest {
         // Given
         InviteMemberRequest request = new InviteMemberRequest();
         request.setEmail("nonexistent@example.com");
-        request.setRoleId(memberRole.getId());
+        request.setRole(Role.MEMBER);
 
         // When & Then
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
@@ -211,12 +205,12 @@ class ProjectServiceIntegrationTest {
         ProjectMember existingMember = new ProjectMember();
         existingMember.setProjectId(testProject.getId());
         existingMember.setUserId(testUser2.getId());
-        existingMember.setRole(memberRole);
+        existingMember.setRole(Role.MEMBER);
         projectMemberRepository.save(existingMember);
 
         InviteMemberRequest request = new InviteMemberRequest();
         request.setEmail("user2@example.com");
-        request.setRoleId(memberRole.getId());
+        request.setRole(Role.MEMBER);
 
         // When & Then
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
@@ -232,11 +226,11 @@ class ProjectServiceIntegrationTest {
         ProjectMember member = new ProjectMember();
         member.setProjectId(testProject.getId());
         member.setUserId(testUser2.getId());
-        member.setRole(memberRole);
+        member.setRole(Role.MEMBER);
         projectMemberRepository.save(member);
 
         UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
-        request.setRoleId(adminRole.getId());
+        request.setRole(Role.ADMIN);
 
         // When
         Project result = projectService.updateMemberRole(testProject.getId(), testUser2.getId(), request);
@@ -246,14 +240,14 @@ class ProjectServiceIntegrationTest {
         Optional<ProjectMember> updatedMember = projectMemberRepository
                 .findByProjectIdAndUserId(testProject.getId(), testUser2.getId());
         assertTrue(updatedMember.isPresent());
-        assertEquals(adminRole.getId(), updatedMember.get().getRole().getId());
+        assertEquals(Role.ADMIN, updatedMember.get().getRole());
     }
 
     @Test
     void testUpdateMemberRole_WhenMemberNotFound() {
         // Given
         UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
-        request.setRoleId(adminRole.getId());
+        request.setRole(Role.ADMIN);
 
         // When & Then
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
@@ -269,7 +263,7 @@ class ProjectServiceIntegrationTest {
         ProjectMember member = new ProjectMember();
         member.setProjectId(testProject.getId());
         member.setUserId(testUser2.getId());
-        member.setRole(memberRole);
+        member.setRole(Role.MEMBER);
         projectMemberRepository.save(member);
 
         // When
@@ -286,7 +280,7 @@ class ProjectServiceIntegrationTest {
         ProjectMember member = new ProjectMember();
         member.setProjectId(testProject.getId());
         member.setUserId(testUser2.getId());
-        member.setRole(memberRole);
+        member.setRole(Role.MEMBER);
         projectMemberRepository.save(member);
 
         // When
@@ -294,7 +288,7 @@ class ProjectServiceIntegrationTest {
 
         // Then
         assertTrue(result.isPresent());
-        assertEquals(memberRole.getId(), result.get().getId());
+        assertEquals(Role.MEMBER, result.get());
     }
 
     @Test
@@ -312,13 +306,13 @@ class ProjectServiceIntegrationTest {
         ProjectMember member1 = new ProjectMember();
         member1.setProjectId(testProject.getId());
         member1.setUserId(testUser1.getId());
-        member1.setRole(adminRole);
+        member1.setRole(Role.ADMIN);
         projectMemberRepository.save(member1);
 
         ProjectMember member2 = new ProjectMember();
         member2.setProjectId(testProject.getId());
         member2.setUserId(testUser2.getId());
-        member2.setRole(memberRole);
+        member2.setRole(Role.MEMBER);
         projectMemberRepository.save(member2);
 
         // When

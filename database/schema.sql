@@ -11,14 +11,6 @@ DROP TABLE IF EXISTS tasks CASCADE;
 DROP TABLE IF EXISTS project_members CASCADE;
 DROP TABLE IF EXISTS projects CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
-DROP TABLE IF EXISTS roles CASCADE;
-
--- Table des rôles
-CREATE TABLE roles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(20) NOT NULL UNIQUE,
-    CONSTRAINT chk_role_name CHECK (name IN ('ADMIN', 'MEMBER', 'OBSERVER'))
-);
 
 -- Table des utilisateurs
 CREATE TABLE users (
@@ -40,11 +32,11 @@ CREATE TABLE projects (
 CREATE TABLE project_members (
     project_id UUID NOT NULL,
     user_id UUID NOT NULL,
-    role_id UUID NOT NULL,
+    role VARCHAR(10) NOT NULL,
     PRIMARY KEY (project_id, user_id),
     CONSTRAINT fk_project_member_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
     CONSTRAINT fk_project_member_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_project_member_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+    CONSTRAINT chk_project_member_role CHECK (role IN ('ADMIN', 'MEMBER', 'OBSERVER'))
 );
 
 -- Table des tâches
@@ -96,7 +88,7 @@ CREATE TABLE notifications (
 
 -- Index pour améliorer les performances
 CREATE INDEX idx_project_member_user ON project_members(user_id);
-CREATE INDEX idx_project_member_role ON project_members(role_id);
+CREATE INDEX idx_project_member_role ON project_members(role);
 CREATE INDEX idx_task_project_member ON tasks(project_member_project_id, project_member_user_id);
 CREATE INDEX idx_task_status ON tasks(status);
 CREATE INDEX idx_task_history_task ON task_history(task_id);

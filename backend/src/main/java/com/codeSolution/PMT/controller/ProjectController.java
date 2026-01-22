@@ -10,6 +10,7 @@ import com.codeSolution.PMT.dto.UpdateMemberRoleRequest;
 import com.codeSolution.PMT.model.Project;
 import com.codeSolution.PMT.model.ProjectMember;
 import com.codeSolution.PMT.service.ProjectService;
+import com.codeSolution.PMT.util.SecurityUtil;
 
 import java.util.List;
 import java.util.UUID;
@@ -17,7 +18,6 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/projects")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:4200")
 public class ProjectController {
 
     private final ProjectService projectService;
@@ -49,7 +49,12 @@ public class ProjectController {
 
     @PostMapping
     public ResponseEntity<Project> createProject(@RequestBody Project project) {
-        Project savedProject = projectService.save(project);
+        UUID currentUserId = SecurityUtil.getCurrentUserId();
+        if (currentUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        
+        Project savedProject = projectService.save(project, currentUserId);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedProject);
     }
 
@@ -58,7 +63,7 @@ public class ProjectController {
         return projectService.findById(id)
                 .map(existingProject -> {
                     project.setId(id);
-                    Project updatedProject = projectService.save(project);
+                    Project updatedProject = projectService.save(project, SecurityUtil.getCurrentUserId());
                     return ResponseEntity.ok(updatedProject);
                 })
                 .orElse(ResponseEntity.notFound().build());
@@ -77,8 +82,11 @@ public class ProjectController {
     public ResponseEntity<?> inviteMember(@PathVariable UUID projectId, 
                                          @RequestBody InviteMemberRequest request) {
         try {
-            // Pour l'instant, on utilise un userId par défaut. Dans un vrai projet, on récupérerait l'ID depuis le token JWT
-            UUID inviterId = UUID.fromString("10000000-0000-0000-0000-000000000001"); // TODO: Récupérer depuis le token JWT
+            UUID inviterId = SecurityUtil.getCurrentUserId();
+            if (inviterId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            
             Project project = projectService.inviteMemberByEmail(projectId, request, inviterId);
             return ResponseEntity.ok(project);
         } catch (RuntimeException e) {

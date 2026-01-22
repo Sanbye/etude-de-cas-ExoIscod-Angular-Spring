@@ -4,12 +4,15 @@ import com.codeSolution.PMT.dto.InviteMemberRequest;
 import com.codeSolution.PMT.dto.UpdateMemberRoleRequest;
 import com.codeSolution.PMT.model.Project;
 import com.codeSolution.PMT.model.ProjectMember;
+import com.codeSolution.PMT.model.Role;
 import com.codeSolution.PMT.service.ProjectService;
+import com.codeSolution.PMT.util.SecurityUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +24,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -133,36 +137,65 @@ class ProjectControllerTest {
     @Test
     void testCreateProject() {
         // Given
-        when(projectService.save(any(Project.class))).thenReturn(testProject);
+        UUID currentUserId = UUID.randomUUID();
+        when(projectService.save(any(Project.class), any(UUID.class))).thenReturn(testProject);
+        
+        // Mock SecurityUtil.getCurrentUserId() using MockedStatic
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(currentUserId);
 
-        // When
-        ResponseEntity<Project> response = projectController.createProject(testProject);
+            // When
+            ResponseEntity<Project> response = projectController.createProject(testProject);
 
-        // Then
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(testProject, response.getBody());
-        verify(projectService, times(1)).save(any(Project.class));
+            // Then
+            assertEquals(HttpStatus.CREATED, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertEquals(testProject, response.getBody());
+            verify(projectService, times(1)).save(any(Project.class), eq(currentUserId));
+        }
+    }
+
+    @Test
+    void testCreateProject_WhenUserNotAuthenticated() {
+        // Given
+        // Mock SecurityUtil.getCurrentUserId() to return null
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(null);
+
+            // When
+            ResponseEntity<Project> response = projectController.createProject(testProject);
+
+            // Then
+            assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+            assertNull(response.getBody());
+            verify(projectService, never()).save(any(Project.class), any(UUID.class));
+        }
     }
 
     @Test
     void testUpdateProject_WhenProjectExists() {
         // Given
+        UUID currentUserId = UUID.randomUUID();
         Project updatedProject = new Project();
         updatedProject.setId(projectId);
         updatedProject.setName("Updated Project");
         when(projectService.findById(projectId)).thenReturn(Optional.of(testProject));
-        when(projectService.save(any(Project.class))).thenReturn(updatedProject);
+        when(projectService.save(any(Project.class), any(UUID.class))).thenReturn(updatedProject);
+        
+        // Mock SecurityUtil.getCurrentUserId()
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(currentUserId);
 
-        // When
-        ResponseEntity<Project> response = projectController.updateProject(projectId, updatedProject);
+            // When
+            ResponseEntity<Project> response = projectController.updateProject(projectId, updatedProject);
 
-        // Then
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals("Updated Project", response.getBody().getName());
-        verify(projectService, times(1)).findById(projectId);
-        verify(projectService, times(1)).save(any(Project.class));
+            // Then
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertEquals("Updated Project", response.getBody().getName());
+            verify(projectService, times(1)).findById(projectId);
+            verify(projectService, times(1)).save(any(Project.class), eq(currentUserId));
+        }
     }
 
     @Test
@@ -177,7 +210,7 @@ class ProjectControllerTest {
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertNull(response.getBody());
         verify(projectService, times(1)).findById(projectId);
-        verify(projectService, never()).save(any(Project.class));
+        verify(projectService, never()).save(any(Project.class), any(UUID.class));
     }
 
     @Test
@@ -215,7 +248,7 @@ class ProjectControllerTest {
         // Given
         InviteMemberRequest request = new InviteMemberRequest();
         request.setEmail("newuser@example.com");
-        request.setRoleId(UUID.randomUUID());
+        request.setRole(Role.MEMBER);
         when(projectService.inviteMemberByEmail(any(UUID.class), any(InviteMemberRequest.class), any(UUID.class)))
                 .thenReturn(testProject);
 
@@ -233,7 +266,7 @@ class ProjectControllerTest {
         // Given
         InviteMemberRequest request = new InviteMemberRequest();
         request.setEmail("newuser@example.com");
-        request.setRoleId(UUID.randomUUID());
+        request.setRole(Role.MEMBER);
         when(projectService.inviteMemberByEmail(any(UUID.class), any(InviteMemberRequest.class), any(UUID.class)))
                 .thenThrow(new RuntimeException("Project not found"));
 
@@ -250,7 +283,7 @@ class ProjectControllerTest {
     void testUpdateMemberRole_Success() {
         // Given
         UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
-        request.setRoleId(UUID.randomUUID());
+        request.setRole(Role.ADMIN);
         when(projectService.updateMemberRole(any(UUID.class), any(UUID.class), any(UpdateMemberRoleRequest.class)))
                 .thenReturn(testProject);
 
@@ -267,7 +300,7 @@ class ProjectControllerTest {
     void testUpdateMemberRole_WhenServiceThrowsException() {
         // Given
         UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
-        request.setRoleId(UUID.randomUUID());
+        request.setRole(Role.ADMIN);
         when(projectService.updateMemberRole(any(UUID.class), any(UUID.class), any(UpdateMemberRoleRequest.class)))
                 .thenThrow(new RuntimeException("Member not found"));
 

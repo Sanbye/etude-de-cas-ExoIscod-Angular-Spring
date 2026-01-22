@@ -15,7 +15,7 @@ import { Task } from '../../models/task.model';
       <div *ngIf="!loading && !error && tasks.length === 0" class="empty">Aucune tâche trouvée.</div>
       <div *ngIf="!loading && !error && tasks.length > 0" class="tasks-grid">
         <div *ngFor="let task of tasks" class="task-card">
-          <h3>{{ task.title }}</h3>
+          <h3>{{ task.name }}</h3>
           <p class="description">{{ task.description || 'Aucune description' }}</p>
           <div class="task-meta">
             <span class="status" [class]="'status-' + task.status.toLowerCase()">
@@ -25,11 +25,11 @@ import { Task } from '../../models/task.model';
               {{ task.priority }}
             </span>
           </div>
-          <div class="task-info" *ngIf="task.project">
-            <span>Projet: {{ task.project.name }}</span>
+          <div class="task-info" *ngIf="task.dueDate">
+            <span>Date d'échéance: {{ task.dueDate | date:'dd/MM/yyyy' }}</span>
           </div>
-          <div class="task-info" *ngIf="task.assignedUser">
-            <span>Assigné à: {{ task.assignedUser.firstName }} {{ task.assignedUser.lastName }}</span>
+          <div class="task-info" *ngIf="task.endDate">
+            <span>Date de fin: {{ task.endDate | date:'dd/MM/yyyy' }}</span>
           </div>
         </div>
       </div>
@@ -85,11 +85,9 @@ import { Task } from '../../models/task.model';
     .status-todo { background-color: #e8f4f8; color: #3498db; }
     .status-in_progress { background-color: #fff3cd; color: #f39c12; }
     .status-done { background-color: #d4edda; color: #27ae60; }
-    .status-cancelled { background-color: #f8d7da; color: #e74c3c; }
     .priority-low { background-color: #e8f4f8; color: #3498db; }
     .priority-medium { background-color: #fff3cd; color: #f39c12; }
     .priority-high { background-color: #ffeaa7; color: #e67e22; }
-    .priority-urgent { background-color: #f8d7da; color: #e74c3c; }
     .task-info {
       font-size: 0.85rem;
       color: #7f8c8d;

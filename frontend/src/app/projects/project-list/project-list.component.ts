@@ -1,15 +1,19 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { ProjectService } from '../../services/project.service';
 import { Project } from '../../models/project.model';
 
 @Component({
   selector: 'app-project-list',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   template: `
     <div class="project-list-container">
-      <h2>Liste des Projets</h2>
+      <div class="header-actions">
+        <h2>Liste des Projets</h2>
+        <a routerLink="/projects/create" class="btn-create">+ Nouveau projet</a>
+      </div>
       <div *ngIf="loading" class="loading">Chargement...</div>
       <div *ngIf="error" class="error">{{ error }}</div>
       <div *ngIf="!loading && !error && projects.length === 0" class="empty">Aucun projet trouvé.</div>
@@ -17,12 +21,9 @@ import { Project } from '../../models/project.model';
         <div *ngFor="let project of projects" class="project-card">
           <h3>{{ project.name }}</h3>
           <p class="description">{{ project.description || 'Aucune description' }}</p>
-          <div class="project-meta">
-            <span class="status" [class]="'status-' + project.status.toLowerCase()">
-              {{ project.status }}
-            </span>
-            <span class="owner" *ngIf="project.owner">
-              Propriétaire: {{ project.owner.firstName }} {{ project.owner.lastName }}
+          <div class="project-meta" *ngIf="project.startingDate">
+            <span class="date">
+              Date de début: {{ project.startingDate | date:'dd/MM/yyyy' }}
             </span>
           </div>
         </div>
@@ -34,9 +35,27 @@ import { Project } from '../../models/project.model';
       max-width: 1200px;
       margin: 0 auto;
     }
+    .header-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
     h2 {
       color: #2c3e50;
-      margin-bottom: 1.5rem;
+      margin: 0;
+    }
+    .btn-create {
+      background-color: #27ae60;
+      color: white;
+      text-decoration: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: background-color 0.3s;
+    }
+    .btn-create:hover {
+      background-color: #229954;
     }
     .projects-grid {
       display: grid;
@@ -69,19 +88,7 @@ import { Project } from '../../models/project.model';
       gap: 0.5rem;
       margin-top: 1rem;
     }
-    .status {
-      display: inline-block;
-      padding: 0.25rem 0.75rem;
-      border-radius: 12px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      width: fit-content;
-    }
-    .status-planned { background-color: #e8f4f8; color: #3498db; }
-    .status-in_progress { background-color: #fff3cd; color: #f39c12; }
-    .status-completed { background-color: #d4edda; color: #27ae60; }
-    .status-cancelled { background-color: #f8d7da; color: #e74c3c; }
-    .owner {
+    .date {
       font-size: 0.85rem;
       color: #7f8c8d;
     }

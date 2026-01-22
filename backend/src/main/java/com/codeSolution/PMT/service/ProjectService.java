@@ -1,6 +1,7 @@
 package com.codeSolution.PMT.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,7 +13,6 @@ import com.codeSolution.PMT.model.Role;
 import com.codeSolution.PMT.model.User;
 import com.codeSolution.PMT.repository.ProjectMemberRepository;
 import com.codeSolution.PMT.repository.ProjectRepository;
-import com.codeSolution.PMT.repository.RoleRepository;
 import com.codeSolution.PMT.repository.UserRepository;
 
 import java.util.List;
@@ -27,7 +27,6 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final ProjectMemberRepository projectMemberRepository;
-    private final RoleRepository roleRepository;
     private final EmailService emailService;
 
     public List<Project> findAll() {
@@ -42,8 +41,17 @@ public class ProjectService {
         return projectRepository.findByMemberId(memberId);
     }
 
-    public Project save(Project project) {
-        return projectRepository.save(project);
+    public Project save(@NonNull Project project, @NonNull UUID creatorId) {
+
+        Project savedProject = projectRepository.save(project);
+
+        ProjectMember creatorMember = new ProjectMember();
+        creatorMember.setProjectId(savedProject.getId());
+        creatorMember.setUserId(creatorId);
+        creatorMember.setRole(Role.ADMIN);
+        projectMemberRepository.save(creatorMember);
+        
+        return savedProject;
     }
 
     public void deleteById(UUID id) {
@@ -61,13 +69,14 @@ public class ProjectService {
             throw new RuntimeException("User is already a member of this project");
         }
 
-        Role role = roleRepository.findById(request.getRoleId())
-                .orElseThrow(() -> new RuntimeException("Role not found"));
+        if (request.getRole() == null) {
+            throw new RuntimeException("Role is required");
+        }
 
         ProjectMember member = new ProjectMember();
         member.setProjectId(projectId);
         member.setUserId(user.getId());
-        member.setRole(role);
+        member.setRole(request.getRole());
         projectMemberRepository.save(member);
 
         User inviter = userRepository.findById(inviterId)
@@ -81,10 +90,11 @@ public class ProjectService {
         ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                 .orElseThrow(() -> new RuntimeException("Member not found in project"));
         
-        Role role = roleRepository.findById(request.getRoleId())
-                .orElseThrow(() -> new RuntimeException("Role not found"));
+        if (request.getRole() == null) {
+            throw new RuntimeException("Role is required");
+        }
         
-        member.setRole(role);
+        member.setRole(request.getRole());
         projectMemberRepository.save(member);
         
         return projectRepository.findById(projectId)

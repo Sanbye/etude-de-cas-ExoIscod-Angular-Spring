@@ -1,12 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { ProjectService } from './project.service';
-import { Project, ProjectStatus } from '../models/project.model';
+import { Project } from '../models/project.model';
+import { environment } from '../../environments/environment';
 
 describe('ProjectService', () => {
   let service: ProjectService;
   let httpMock: HttpTestingController;
-  const apiUrl = 'http://localhost:3000/api/projects';
+  const apiUrl = `${environment.apiUrl}/projects`;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -27,8 +28,8 @@ describe('ProjectService', () => {
 
   it('should get all projects', () => {
     const mockProjects: Project[] = [
-      { id: 1, name: 'Project 1', description: 'Description 1', status: ProjectStatus.IN_PROGRESS },
-      { id: 2, name: 'Project 2', description: 'Description 2', status: ProjectStatus.PLANNED }
+      { id: '1', name: 'Project 1', description: 'Description 1', startingDate: '2026-01-01' },
+      { id: '2', name: 'Project 2', description: 'Description 2', startingDate: '2026-01-02' }
     ];
 
     service.getAllProjects().subscribe(projects => {
@@ -42,7 +43,7 @@ describe('ProjectService', () => {
   });
 
   it('should get project by id', () => {
-    const mockProject: Project = { id: 1, name: 'Project 1', description: 'Description 1', status: ProjectStatus.IN_PROGRESS };
+    const mockProject: Project = { id: '1', name: 'Project 1', description: 'Description 1', startingDate: '2026-01-01' };
 
     service.getProjectById('1').subscribe(project => {
       expect(project).toEqual(mockProject);
@@ -54,8 +55,8 @@ describe('ProjectService', () => {
   });
 
   it('should create a project', () => {
-    const newProject: Project = { name: 'New Project', description: 'New Description', status: ProjectStatus.PLANNED };
-    const createdProject: Project = { id: 1, ...newProject };
+    const newProject: Project = { name: 'New Project', description: 'New Description' };
+    const createdProject: Project = { id: '1', ...newProject };
 
     service.createProject(newProject).subscribe(project => {
       expect(project).toEqual(createdProject);
@@ -68,7 +69,7 @@ describe('ProjectService', () => {
   });
 
   it('should update a project', () => {
-    const updatedProject: Project = { id: 1, name: 'Updated Project', description: 'Updated Description', status: ProjectStatus.IN_PROGRESS };
+    const updatedProject: Project = { id: '1', name: 'Updated Project', description: 'Updated Description' };
 
     service.updateProject('1', updatedProject).subscribe(project => {
       expect(project).toEqual(updatedProject);

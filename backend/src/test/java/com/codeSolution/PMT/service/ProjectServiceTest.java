@@ -8,7 +8,6 @@ import com.codeSolution.PMT.model.Role;
 import com.codeSolution.PMT.model.User;
 import com.codeSolution.PMT.repository.ProjectMemberRepository;
 import com.codeSolution.PMT.repository.ProjectRepository;
-import com.codeSolution.PMT.repository.RoleRepository;
 import com.codeSolution.PMT.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,9 +38,6 @@ class ProjectServiceTest {
     private ProjectMemberRepository projectMemberRepository;
 
     @Mock
-    private RoleRepository roleRepository;
-
-    @Mock
     private EmailService emailService;
 
     @InjectMocks
@@ -49,17 +45,14 @@ class ProjectServiceTest {
 
     private Project testProject;
     private User testUser;
-    private Role testRole;
     private ProjectMember testProjectMember;
     private UUID projectId;
     private UUID userId;
-    private UUID roleId;
 
     @BeforeEach
     void setUp() {
         projectId = UUID.randomUUID();
         userId = UUID.randomUUID();
-        roleId = UUID.randomUUID();
 
         testProject = new Project();
         testProject.setId(projectId);
@@ -71,14 +64,10 @@ class ProjectServiceTest {
         testUser.setUserName("testuser");
         testUser.setEmail("test@example.com");
 
-        testRole = new Role();
-        testRole.setId(roleId);
-        testRole.setName(Role.RoleName.MEMBER);
-
         testProjectMember = new ProjectMember();
         testProjectMember.setProjectId(projectId);
         testProjectMember.setUserId(userId);
-        testProjectMember.setRole(testRole);
+        testProjectMember.setRole(Role.MEMBER);
     }
 
     @Test
@@ -127,15 +116,18 @@ class ProjectServiceTest {
     @Test
     void testSave() {
         // Given
+        UUID creatorId = UUID.randomUUID();
         when(projectRepository.save(any(Project.class))).thenReturn(testProject);
+        when(projectMemberRepository.save(any(ProjectMember.class))).thenReturn(testProjectMember);
 
         // When
-        Project result = projectService.save(testProject);
+        Project result = projectService.save(testProject, creatorId);
 
         // Then
         assertNotNull(result);
         assertEquals(testProject, result);
         verify(projectRepository, times(1)).save(testProject);
+        verify(projectMemberRepository, times(1)).save(any(ProjectMember.class));
     }
 
     @Test
@@ -152,13 +144,12 @@ class ProjectServiceTest {
         // Given
         InviteMemberRequest request = new InviteMemberRequest();
         request.setEmail("test@example.com");
-        request.setRoleId(roleId);
+        request.setRole(Role.MEMBER);
         UUID inviterId = UUID.randomUUID();
 
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(testProject));
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
         when(projectMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(false);
-        when(roleRepository.findById(roleId)).thenReturn(Optional.of(testRole));
         when(projectMemberRepository.save(any(ProjectMember.class))).thenReturn(testProjectMember);
         when(userRepository.findById(inviterId)).thenReturn(Optional.of(testUser));
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(testProject));
@@ -171,7 +162,6 @@ class ProjectServiceTest {
         verify(projectRepository, atLeastOnce()).findById(projectId);
         verify(userRepository, times(1)).findByEmail("test@example.com");
         verify(projectMemberRepository, times(1)).existsByProjectIdAndUserId(projectId, userId);
-        verify(roleRepository, times(1)).findById(roleId);
         verify(projectMemberRepository, times(1)).save(any(ProjectMember.class));
         verify(emailService, times(1)).sendProjectInvitation(anyString(), anyString(), anyString());
     }
@@ -181,7 +171,7 @@ class ProjectServiceTest {
         // Given
         InviteMemberRequest request = new InviteMemberRequest();
         request.setEmail("test@example.com");
-        request.setRoleId(roleId);
+        request.setRole(Role.MEMBER);
         UUID inviterId = UUID.randomUUID();
 
         when(projectRepository.findById(projectId)).thenReturn(Optional.empty());
@@ -200,14 +190,10 @@ class ProjectServiceTest {
     void testUpdateMemberRole_Success() {
         // Given
         UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
-        request.setRoleId(roleId);
-        Role newRole = new Role();
-        newRole.setId(roleId);
-        newRole.setName(Role.RoleName.ADMIN);
+        request.setRole(Role.ADMIN);
 
         when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
                 .thenReturn(Optional.of(testProjectMember));
-        when(roleRepository.findById(roleId)).thenReturn(Optional.of(newRole));
         when(projectMemberRepository.save(any(ProjectMember.class))).thenReturn(testProjectMember);
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(testProject));
 
@@ -217,7 +203,6 @@ class ProjectServiceTest {
         // Then
         assertNotNull(result);
         verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, userId);
-        verify(roleRepository, times(1)).findById(roleId);
         verify(projectMemberRepository, times(1)).save(any(ProjectMember.class));
         verify(projectRepository, times(1)).findById(projectId);
     }
@@ -250,7 +235,7 @@ class ProjectServiceTest {
 
         // Then
         assertTrue(result.isPresent());
-        assertEquals(testRole, result.get());
+        assertEquals(Role.MEMBER, result.get());
         verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, userId);
     }
 
