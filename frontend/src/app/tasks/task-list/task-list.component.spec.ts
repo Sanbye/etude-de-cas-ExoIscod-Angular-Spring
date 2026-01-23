@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { TaskListComponent } from './task-list.component';
 import { TaskService } from '../../services/task.service';
 import { ProjectService } from '../../services/project.service';
@@ -62,18 +62,19 @@ describe('TaskListComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should load tasks grouped by project on init', () => {
+  it('should load tasks grouped by project on init', fakeAsync(() => {
     projectService.getAllProjects.and.returnValue(of(mockProjects));
     taskService.getTasksByProject.and.returnValue(of(mockTasks));
     projectService.getProjectMembers.and.returnValue(of(mockMembers));
 
     fixture.detectChanges();
+    tick();
 
     expect(component.taskGroups.length).toBeGreaterThan(0);
     expect(component.loading).toBe(false);
     expect(component.error).toBeNull();
     expect(projectService.getAllProjects).toHaveBeenCalled();
-  });
+  }));
 
   it('should handle error when loading projects', () => {
     const errorMessage = 'Error loading projects';
@@ -86,9 +87,12 @@ describe('TaskListComponent', () => {
     expect(component.error).toBe('Impossible de charger les projets. Vérifiez que le backend est démarré.');
   });
 
-  it('should display loading state', () => {
+  it('should display loading state', fakeAsync(() => {
     const projectsSubject = new Subject<Project[]>();
     projectService.getAllProjects.and.returnValue(projectsSubject.asObservable());
+    // Mocker les appels pour chaque projet
+    taskService.getTasksByProject.and.returnValue(of([]));
+    projectService.getProjectMembers.and.returnValue(of([]));
     
     fixture.detectChanges();
     expect(component.loading).toBe(true);
@@ -98,7 +102,9 @@ describe('TaskListComponent', () => {
     
     projectsSubject.next(mockProjects);
     projectsSubject.complete();
-  });
+    tick();
+    fixture.detectChanges();
+  }));
 
   it('should display error message', () => {
     projectService.getAllProjects.and.returnValue(of(mockProjects));
@@ -117,41 +123,47 @@ describe('TaskListComponent', () => {
     expect(errorElement?.textContent).toContain('Test error');
   });
 
-  it('should display tasks grouped by project when loaded', () => {
+  it('should display tasks grouped by project when loaded', fakeAsync(() => {
     projectService.getAllProjects.and.returnValue(of(mockProjects));
     taskService.getTasksByProject.and.returnValue(of(mockTasks));
     projectService.getProjectMembers.and.returnValue(of(mockMembers));
+    fixture.detectChanges();
+    tick();
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
     const grid = compiled.querySelector('.tasks-grid');
     expect(grid).toBeTruthy();
-  });
+  }));
 
-  it('should display empty message when no tasks', () => {
+  it('should display empty message when no tasks', fakeAsync(() => {
     projectService.getAllProjects.and.returnValue(of(mockProjects));
     taskService.getTasksByProject.and.returnValue(of([]));
     projectService.getProjectMembers.and.returnValue(of(mockMembers));
+    fixture.detectChanges();
+    tick();
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
     const emptyElement = compiled.querySelector('.empty');
     expect(emptyElement).toBeTruthy();
     expect(emptyElement?.textContent).toContain('Aucune tâche trouvée');
-  });
+  }));
 
-  it('should assign a task to a member', () => {
+  it('should assign a task to a member', fakeAsync(() => {
     projectService.getAllProjects.and.returnValue(of(mockProjects));
     taskService.getTasksByProject.and.returnValue(of(mockTasks));
     projectService.getProjectMembers.and.returnValue(of(mockMembers));
     taskService.assignTask.and.returnValue(of(mockTasks[0]));
     
     fixture.detectChanges();
+    tick();
     
     component.assignmentValues['1'] = 'user1';
     component.assignTask(mockTasks[0], '1');
+    tick();
     
     expect(taskService.assignTask).toHaveBeenCalledWith('1', '1', 'user1');
-  });
+  }));
 });
 
