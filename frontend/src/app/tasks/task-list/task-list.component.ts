@@ -20,12 +20,28 @@ interface TaskGroup {
   imports: [CommonModule, FormsModule, ReactiveFormsModule],
   template: `
     <div class="task-list-container">
-      <h2>Liste des Tâches</h2>
+      <div class="header-section">
+        <h2>Liste des Tâches</h2>
+        <div class="filter-section">
+          <label for="statusFilter">Filtrer par statut:</label>
+          <select 
+            id="statusFilter" 
+            [(ngModel)]="selectedStatus" 
+            (change)="onStatusFilterChange()"
+            class="status-filter"
+          >
+            <option value="">Tous les statuts</option>
+            <option [value]="TaskStatus.TODO">À faire (TODO)</option>
+            <option [value]="TaskStatus.IN_PROGRESS">En cours (IN_PROGRESS)</option>
+            <option [value]="TaskStatus.DONE">Terminé (DONE)</option>
+          </select>
+        </div>
+      </div>
       <div *ngIf="loading" class="loading">Chargement...</div>
       <div *ngIf="error" class="error">{{ error }}</div>
-      <div *ngIf="!loading && !error && taskGroups.length === 0" class="empty">Aucune tâche trouvée.</div>
+      <div *ngIf="!loading && !error && filteredTaskGroups.length === 0" class="empty">Aucune tâche trouvée.</div>
       
-      <div *ngFor="let group of taskGroups" class="project-group">
+      <div *ngFor="let group of filteredTaskGroups" class="project-group">
         <h3 class="project-title">{{ group.project.name }}</h3>
         <div class="tasks-grid">
           <div *ngFor="let task of group.tasks" class="task-card">
@@ -531,6 +547,38 @@ interface TaskGroup {
       padding: 2rem;
       color: #7f8c8d;
     }
+    .header-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .filter-section {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .filter-section label {
+      font-weight: 500;
+      color: #2c3e50;
+      font-size: 0.9rem;
+    }
+    .status-filter {
+      padding: 0.5rem 1rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      background-color: white;
+      cursor: pointer;
+      min-width: 200px;
+    }
+    .status-filter:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
   `]
 })
 export class TaskListComponent implements OnInit {
@@ -553,6 +601,9 @@ export class TaskListComponent implements OnInit {
   loadingHistory: { [taskId: string]: boolean } = {};
   historyError: { [taskId: string]: string | null } = {};
 
+  selectedStatus: string = '';
+  filteredTaskGroups: TaskGroup[] = [];
+
   TaskStatus = TaskStatus;
   TaskPriority = TaskPriority;
 
@@ -565,7 +616,28 @@ export class TaskListComponent implements OnInit {
 
   ngOnInit(): void {
     this.currentUser = this.sessionService.getCurrentUser();
+    this.selectedStatus = '';
     this.loadTasks();
+  }
+
+  onStatusFilterChange(): void {
+    this.applyStatusFilter();
+  }
+
+  applyStatusFilter(): void {
+    if (!this.selectedStatus || this.selectedStatus === '') {
+      this.filteredTaskGroups = this.taskGroups.map(group => ({
+        ...group,
+        tasks: group.tasks
+      }));
+    } else {
+      this.filteredTaskGroups = this.taskGroups
+        .map(group => ({
+          ...group,
+          tasks: group.tasks.filter(task => task.status === this.selectedStatus)
+        }))
+        .filter(group => group.tasks.length > 0);
+    }
   }
 
   setActiveTab(taskId: string, tab: string): void {
@@ -634,6 +706,7 @@ export class TaskListComponent implements OnInit {
               loadedCount++;
               if (loadedCount === projects.length) {
                 this.taskGroups = groups;
+                this.applyStatusFilter();
                 this.loading = false;
               }
             }
@@ -879,6 +952,7 @@ export class TaskListComponent implements OnInit {
             this.activeTab[task.id] = 'details';
           }
         });
+        this.applyStatusFilter();
         if (callback) {
           callback();
         }

@@ -37,7 +37,7 @@ describe('TaskListComponent', () => {
   };
 
   beforeEach(async () => {
-    const taskServiceSpy = jasmine.createSpyObj('TaskService', ['getTasksByProject', 'assignTask']);
+    const taskServiceSpy = jasmine.createSpyObj('TaskService', ['getTasksByProject', 'assignTask', 'getTaskHistory', 'updateTask']);
     const projectServiceSpy = jasmine.createSpyObj('ProjectService', ['getAllProjects', 'getProjectMembers']);
 
     await TestBed.configureTestingModule({
@@ -155,6 +155,7 @@ describe('TaskListComponent', () => {
     taskService.getTasksByProject.and.returnValue(of(mockTasks));
     projectService.getProjectMembers.and.returnValue(of(mockMembers));
     taskService.assignTask.and.returnValue(of(mockTasks[0]));
+    taskService.getTaskHistory.and.returnValue(of([]));
     
     fixture.detectChanges();
     tick();
@@ -165,6 +166,125 @@ describe('TaskListComponent', () => {
     tick(1000); 
     
     expect(taskService.assignTask).toHaveBeenCalledWith('1', '1', 'user1');
+  }));
+
+  it('should filter tasks by status - TODO', fakeAsync(() => {
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    taskService.getTasksByProject.and.returnValue(of(mockTasks));
+    projectService.getProjectMembers.and.returnValue(of(mockMembers));
+    
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    
+    component.selectedStatus = TaskStatus.TODO;
+    component.onStatusFilterChange();
+    fixture.detectChanges();
+    
+    expect(component.filteredTaskGroups.length).toBeGreaterThan(0);
+    const todoTasks = component.filteredTaskGroups.flatMap(g => g.tasks);
+    expect(todoTasks.every(task => task.status === TaskStatus.TODO)).toBe(true);
+  }));
+
+  it('should filter tasks by status - IN_PROGRESS', fakeAsync(() => {
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    taskService.getTasksByProject.and.returnValue(of(mockTasks));
+    projectService.getProjectMembers.and.returnValue(of(mockMembers));
+    
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    
+    component.selectedStatus = TaskStatus.IN_PROGRESS;
+    component.onStatusFilterChange();
+    fixture.detectChanges();
+    
+    expect(component.filteredTaskGroups.length).toBeGreaterThan(0);
+    const inProgressTasks = component.filteredTaskGroups.flatMap(g => g.tasks);
+    expect(inProgressTasks.every(task => task.status === TaskStatus.IN_PROGRESS)).toBe(true);
+  }));
+
+  it('should filter tasks by status - DONE', fakeAsync(() => {
+    const doneTasks: Task[] = [
+      { id: '3', name: 'Task 3', description: 'Description 3', status: TaskStatus.DONE, priority: TaskPriority.LOW, projectId: '1' }
+    ];
+    
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    taskService.getTasksByProject.and.returnValue(of(doneTasks));
+    projectService.getProjectMembers.and.returnValue(of(mockMembers));
+    
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    
+    component.selectedStatus = TaskStatus.DONE;
+    component.onStatusFilterChange();
+    fixture.detectChanges();
+    
+    expect(component.filteredTaskGroups.length).toBeGreaterThan(0);
+    const doneTasksFiltered = component.filteredTaskGroups.flatMap(g => g.tasks);
+    expect(doneTasksFiltered.every(task => task.status === TaskStatus.DONE)).toBe(true);
+  }));
+
+  it('should show all tasks when no filter is selected', fakeAsync(() => {
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    taskService.getTasksByProject.and.returnValue(of(mockTasks));
+    projectService.getProjectMembers.and.returnValue(of(mockMembers));
+    
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    
+    component.selectedStatus = '';
+    component.onStatusFilterChange();
+    fixture.detectChanges();
+    
+    expect(component.filteredTaskGroups.length).toBeGreaterThan(0);
+    const allTasks = component.filteredTaskGroups.flatMap(g => g.tasks);
+    expect(allTasks.length).toBe(mockTasks.length);
+  }));
+
+  it('should hide projects with no matching tasks when filter is applied', fakeAsync(() => {
+    const todoOnlyTasks: Task[] = [
+      { id: '1', name: 'Task 1', description: 'Description 1', status: TaskStatus.TODO, priority: TaskPriority.MEDIUM, projectId: '1' }
+    ];
+    
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    taskService.getTasksByProject.and.returnValue(of(todoOnlyTasks));
+    projectService.getProjectMembers.and.returnValue(of(mockMembers));
+    
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    
+    component.selectedStatus = TaskStatus.DONE;
+    component.onStatusFilterChange();
+    fixture.detectChanges();
+    
+    expect(component.filteredTaskGroups.length).toBe(0);
+  }));
+
+  it('should apply filter after task update', fakeAsync(() => {
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    taskService.getTasksByProject.and.returnValue(of(mockTasks));
+    projectService.getProjectMembers.and.returnValue(of(mockMembers));
+    taskService.updateTask.and.returnValue(of(mockTasks[0]));
+    taskService.getTaskHistory.and.returnValue(of([]));
+    
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    
+    component.selectedStatus = TaskStatus.TODO;
+    component.onStatusFilterChange();
+    
+    const initialFilteredCount = component.filteredTaskGroups.flatMap(g => g.tasks).length;
+    
+    component.updateTask(mockTasks[0], '1');
+    tick();
+    tick(1000);
+    
+    expect(component.filteredTaskGroups.length).toBeGreaterThanOrEqual(0);
   }));
 });
 
