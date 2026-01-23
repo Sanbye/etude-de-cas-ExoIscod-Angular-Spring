@@ -161,7 +161,8 @@ describe('TaskListComponent', () => {
     
     component.assignmentValues['1'] = 'user1';
     component.assignTask(mockTasks[0], '1');
-    tick();
+    tick(); 
+    tick(1000); 
     
     expect(taskService.assignTask).toHaveBeenCalledWith('1', '1', 'user1');
   }));
