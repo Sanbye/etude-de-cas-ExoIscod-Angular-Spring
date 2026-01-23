@@ -89,13 +89,10 @@ class TaskServiceTest {
 
     @Test
     void testFindById_WhenTaskExists() {
-        // Given
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
 
-        // When
         Optional<Task> result = taskService.findById(taskId);
 
-        // Then
         assertTrue(result.isPresent());
         assertEquals(testTask, result.get());
         verify(taskRepository, times(1)).findById(taskId);
@@ -103,15 +100,91 @@ class TaskServiceTest {
 
     @Test
     void testFindById_WhenTaskDoesNotExist() {
-        // Given
         when(taskRepository.findById(taskId)).thenReturn(Optional.empty());
 
-        // When
         Optional<Task> result = taskService.findById(taskId);
 
-        // Then
         assertFalse(result.isPresent());
         verify(taskRepository, times(1)).findById(taskId);
+    }
+
+    @Test
+    void testFindByIdWithPermission_Success() {
+        UUID viewerId = userId;
+        testProjectMember.setRole(Role.MEMBER);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, viewerId))
+                .thenReturn(Optional.of(testProjectMember));
+
+        Task result = taskService.findByIdWithPermission(taskId, viewerId);
+
+        assertNotNull(result);
+        assertEquals(testTask, result);
+        verify(taskRepository, times(1)).findById(taskId);
+        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, viewerId);
+    }
+
+    @Test
+    void testFindByIdWithPermission_WhenTaskDoesNotExist() {
+        UUID viewerId = userId;
+        when(taskRepository.findById(taskId)).thenReturn(Optional.empty());
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            taskService.findByIdWithPermission(taskId, viewerId);
+        });
+
+        assertEquals("Task not found", exception.getMessage());
+        verify(taskRepository, times(1)).findById(taskId);
+        verify(projectMemberRepository, never()).findByProjectIdAndUserId(any(), any());
+    }
+
+    @Test
+    void testFindByIdWithPermission_WhenTaskNotAssigned() {
+        UUID viewerId = userId;
+        Task taskWithoutMember = new Task();
+        taskWithoutMember.setId(taskId);
+        taskWithoutMember.setProjectMember(null);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(taskWithoutMember));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            taskService.findByIdWithPermission(taskId, viewerId);
+        });
+
+        assertEquals("Task is not assigned to a project member", exception.getMessage());
+        verify(taskRepository, times(1)).findById(taskId);
+        verify(projectMemberRepository, never()).findByProjectIdAndUserId(any(), any());
+    }
+
+    @Test
+    void testFindByIdWithPermission_WhenUserNotMember() {
+        UUID viewerId = UUID.randomUUID();
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, viewerId))
+                .thenReturn(Optional.empty());
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            taskService.findByIdWithPermission(taskId, viewerId);
+        });
+
+        assertEquals("You must be a member of the project to view task details.", exception.getMessage());
+        verify(taskRepository, times(1)).findById(taskId);
+        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, viewerId);
+    }
+
+    @Test
+    void testFindByIdWithPermission_WithObserverRole() {
+        UUID viewerId = userId;
+        testProjectMember.setRole(Role.OBSERVER);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, viewerId))
+                .thenReturn(Optional.of(testProjectMember));
+
+        Task result = taskService.findByIdWithPermission(taskId, viewerId);
+
+        assertNotNull(result);
+        assertEquals(testTask, result);
+        verify(taskRepository, times(1)).findById(taskId);
+        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, viewerId);
     }
 
     @Test

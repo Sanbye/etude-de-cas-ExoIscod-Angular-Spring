@@ -3,6 +3,8 @@ package com.codeSolution.PMT.controller;
 import com.codeSolution.PMT.dto.AssignTaskRequest;
 import com.codeSolution.PMT.dto.CreateTaskRequest;
 import com.codeSolution.PMT.dto.TaskDTO;
+import com.codeSolution.PMT.model.ProjectMember;
+import com.codeSolution.PMT.model.Role;
 import com.codeSolution.PMT.model.Task;
 import com.codeSolution.PMT.model.TaskHistory;
 import com.codeSolution.PMT.service.TaskService;
@@ -38,6 +40,7 @@ class TaskControllerTest {
     private TaskController taskController;
 
     private Task testTask;
+    private ProjectMember testProjectMember;
     private UUID taskId;
     private UUID projectId;
     private UUID userId;
@@ -48,12 +51,18 @@ class TaskControllerTest {
         projectId = UUID.randomUUID();
         userId = UUID.randomUUID();
 
+        testProjectMember = new ProjectMember();
+        testProjectMember.setProjectId(projectId);
+        testProjectMember.setUserId(userId);
+        testProjectMember.setRole(Role.MEMBER);
+
         testTask = new Task();
         testTask.setId(taskId);
         testTask.setName("Test Task");
         testTask.setDescription("Test Description");
         testTask.setStatus(Task.TaskStatus.TODO);
         testTask.setPriority(Task.TaskPriority.MEDIUM);
+        testTask.setProjectMember(testProjectMember);
     }
 
     @Test
@@ -74,49 +83,105 @@ class TaskControllerTest {
     }
 
     @Test
-    void testGetTaskById_WhenTaskExists() {
-        // Given
-        when(taskService.findById(taskId)).thenReturn(Optional.of(testTask));
+    void testGetTaskById_Success() {
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(userId);
+            when(taskService.findByIdWithPermission(taskId, userId)).thenReturn(testTask);
 
-        // When
-        ResponseEntity<Task> response = taskController.getTaskById(taskId);
+            ResponseEntity<?> response = taskController.getTaskById(taskId);
 
-        // Then
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(testTask, response.getBody());
-        verify(taskService, times(1)).findById(taskId);
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertEquals(testTask, response.getBody());
+            verify(taskService, times(1)).findByIdWithPermission(taskId, userId);
+        }
+    }
+
+    @Test
+    void testGetTaskById_Unauthorized() {
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(null);
+
+            ResponseEntity<?> response = taskController.getTaskById(taskId);
+
+            assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+            verify(taskService, never()).findByIdWithPermission(any(), any());
+        }
     }
 
     @Test
     void testGetTaskById_WhenTaskDoesNotExist() {
-        // Given
-        when(taskService.findById(taskId)).thenReturn(Optional.empty());
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(userId);
+            when(taskService.findByIdWithPermission(taskId, userId))
+                    .thenThrow(new RuntimeException("Task not found"));
 
-        // When
-        ResponseEntity<Task> response = taskController.getTaskById(taskId);
+            ResponseEntity<?> response = taskController.getTaskById(taskId);
 
-        // Then
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        assertNull(response.getBody());
-        verify(taskService, times(1)).findById(taskId);
+            assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+            assertEquals("Task not found", response.getBody());
+            verify(taskService, times(1)).findByIdWithPermission(taskId, userId);
+        }
     }
 
     @Test
-    void testGetTasksByProject() {
-        // Given
+    void testGetTaskById_Forbidden() {
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(userId);
+            when(taskService.findByIdWithPermission(taskId, userId))
+                    .thenThrow(new RuntimeException("You must be a member of the project to view task details."));
+
+            ResponseEntity<?> response = taskController.getTaskById(taskId);
+
+            assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+            assertEquals("You must be a member of the project to view task details.", response.getBody());
+            verify(taskService, times(1)).findByIdWithPermission(taskId, userId);
+        }
+    }
+
+    @Test
+    void testGetTasksByProject_Success() {
         TaskDTO taskDTO = TaskDTO.fromTask(testTask);
         List<TaskDTO> taskDTOs = Arrays.asList(taskDTO);
-        when(taskService.findTaskDTOsByProjectId(projectId)).thenReturn(taskDTOs);
+        
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(userId);
+            when(taskService.findTaskDTOsByProjectId(projectId, userId)).thenReturn(taskDTOs);
 
-        // When
-        ResponseEntity<List<TaskDTO>> response = taskController.getTasksByProject(projectId);
+            ResponseEntity<?> response = taskController.getTasksByProject(projectId);
 
-        // Then
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
-        verify(taskService, times(1)).findTaskDTOsByProjectId(projectId);
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertEquals(1, ((List<?>) response.getBody()).size());
+            verify(taskService, times(1)).findTaskDTOsByProjectId(projectId, userId);
+        }
+    }
+
+    @Test
+    void testGetTasksByProject_Unauthorized() {
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(null);
+
+            ResponseEntity<?> response = taskController.getTasksByProject(projectId);
+
+            assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+            verify(taskService, never()).findTaskDTOsByProjectId(any(), any());
+        }
+    }
+
+    @Test
+    void testGetTasksByProject_Forbidden() {
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(userId);
+            when(taskService.findTaskDTOsByProjectId(projectId, userId))
+                    .thenThrow(new RuntimeException("You must be a member of the project to view tasks."));
+
+            ResponseEntity<?> response = taskController.getTasksByProject(projectId);
+
+            assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+            assertEquals("You must be a member of the project to view tasks.", response.getBody());
+            verify(taskService, times(1)).findTaskDTOsByProjectId(projectId, userId);
+        }
     }
 
     @Test

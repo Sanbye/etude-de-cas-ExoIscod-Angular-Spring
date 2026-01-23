@@ -199,10 +199,13 @@ interface TaskGroup {
             <!-- Onglet Historique -->
             <div *ngIf="activeTab[task.id!] === 'history'" class="tab-content">
               <div *ngIf="loadingHistory[task.id!]" class="loading-small">Chargement de l'historique...</div>
-              <div *ngIf="!loadingHistory[task.id!] && (!taskHistory[task.id!] || taskHistory[task.id!].length === 0)" class="empty-small">
+              <div *ngIf="!loadingHistory[task.id!] && historyError[task.id!]" class="alert alert-error">
+                {{ historyError[task.id!] }}
+              </div>
+              <div *ngIf="!loadingHistory[task.id!] && !historyError[task.id!] && (!taskHistory[task.id!] || taskHistory[task.id!].length === 0)" class="empty-small">
                 Aucun historique disponible
               </div>
-              <div *ngIf="!loadingHistory[task.id!] && taskHistory[task.id!] && taskHistory[task.id!].length > 0" class="history-list">
+              <div *ngIf="!loadingHistory[task.id!] && !historyError[task.id!] && taskHistory[task.id!] && taskHistory[task.id!].length > 0" class="history-list">
                 <div *ngFor="let entry of taskHistory[task.id!]" class="history-item">
                   <div class="history-header">
                     <span class="history-field">{{ getFieldDisplayName(entry.fieldName) }}</span>
@@ -548,6 +551,7 @@ export class TaskListComponent implements OnInit {
   
   taskHistory: { [taskId: string]: TaskHistory[] } = {};
   loadingHistory: { [taskId: string]: boolean } = {};
+  historyError: { [taskId: string]: string | null } = {};
 
   TaskStatus = TaskStatus;
   TaskPriority = TaskPriority;
@@ -642,9 +646,14 @@ export class TaskListComponent implements OnInit {
               checkComplete();
             },
             error: (err) => {
-              console.error(`Erreur lors du chargement des tâches pour le projet ${project.id}:`, err);
-              tasksLoaded = true;
-              checkComplete();
+              if (err.status === 403) {
+                tasksLoaded = true;
+                checkComplete();
+              } else {
+                console.error(`Erreur lors du chargement des tâches pour le projet ${project.id}:`, err);
+                tasksLoaded = true;
+                checkComplete();
+              }
             }
           });
 
@@ -655,9 +664,14 @@ export class TaskListComponent implements OnInit {
               checkComplete();
             },
             error: (err) => {
-              console.error(`Erreur lors du chargement des membres pour le projet ${project.id}:`, err);
-              membersLoaded = true;
-              checkComplete();
+              if (err.status === 403) {
+                membersLoaded = true;
+                checkComplete();
+              } else {
+                console.error(`Erreur lors du chargement des membres pour le projet ${project.id}:`, err);
+                membersLoaded = true;
+                checkComplete();
+              }
             }
           });
         });
@@ -798,15 +812,26 @@ export class TaskListComponent implements OnInit {
     }
 
     this.loadingHistory[taskId] = true;
+    this.historyError[taskId] = null;
     this.taskService.getTaskHistory(taskId).subscribe({
       next: (history) => {
         this.taskHistory[taskId] = history;
         this.loadingHistory[taskId] = false;
+        this.historyError[taskId] = null;
       },
       error: (err) => {
         console.error('Erreur lors du chargement de l\'historique:', err);
-        this.taskHistory[taskId] = [];
         this.loadingHistory[taskId] = false;
+        if (err.status === 403) {
+          this.historyError[taskId] = 'Vous n\'avez pas les permissions pour visualiser l\'historique de cette tâche.';
+        } else if (err.status === 404) {
+          this.historyError[taskId] = 'Tâche introuvable.';
+        } else {
+          this.historyError[taskId] = err.error && typeof err.error === 'string' 
+            ? err.error 
+            : 'Erreur lors du chargement de l\'historique.';
+        }
+        this.taskHistory[taskId] = [];
       }
     });
   }
@@ -814,6 +839,7 @@ export class TaskListComponent implements OnInit {
   reloadTaskHistory(taskId: string): void {
     if (!taskId) return;
     delete this.taskHistory[taskId];
+    delete this.historyError[taskId];
     this.loadTaskHistory(taskId, true);
   }
 

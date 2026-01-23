@@ -37,11 +37,33 @@ public class TaskService {
         return taskRepository.findById(id);
     }
 
+    public Task findByIdWithPermission(UUID taskId, UUID userId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        ProjectMember taskProjectMember = task.getProjectMember();
+        if (taskProjectMember == null) {
+            throw new RuntimeException("Task is not assigned to a project member");
+        }
+
+        UUID projectId = taskProjectMember.getProjectId();
+
+        projectMemberRepository
+                .findByProjectIdAndUserId(projectId, userId)
+                .orElseThrow(() -> new RuntimeException("You must be a member of the project to view task details."));
+
+        return task;
+    }
+
     public List<Task> findByProjectId(UUID projectId) {
         return taskRepository.findByProjectId(projectId);
     }
 
-    public List<TaskDTO> findTaskDTOsByProjectId(UUID projectId) {
+    public List<TaskDTO> findTaskDTOsByProjectId(UUID projectId, UUID userId) {
+        projectMemberRepository
+                .findByProjectIdAndUserId(projectId, userId)
+                .orElseThrow(() -> new RuntimeException("You must be a member of the project to view tasks."));
+        
         List<Task> tasks = taskRepository.findByProjectId(projectId);
         return tasks.stream()
                 .map(TaskDTO::fromTask)

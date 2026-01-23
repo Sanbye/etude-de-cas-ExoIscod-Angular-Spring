@@ -30,16 +30,36 @@ public class TaskController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Task> getTaskById(@PathVariable UUID id) {
-        return taskService.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<?> getTaskById(@PathVariable UUID id) {
+        try {
+            UUID userId = SecurityUtil.getCurrentUserId();
+            if (userId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            Task task = taskService.findByIdWithPermission(id, userId);
+            return ResponseEntity.ok(task);
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("Task not found")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            }
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
     }
 
     @GetMapping("/project/{projectId}")
-    public ResponseEntity<List<TaskDTO>> getTasksByProject(@PathVariable UUID projectId) {
-        List<TaskDTO> tasks = taskService.findTaskDTOsByProjectId(projectId);
-        return ResponseEntity.ok(tasks);
+    public ResponseEntity<?> getTasksByProject(@PathVariable UUID projectId) {
+        try {
+            UUID userId = SecurityUtil.getCurrentUserId();
+            if (userId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            List<TaskDTO> tasks = taskService.findTaskDTOsByProjectId(projectId, userId);
+            return ResponseEntity.ok(tasks);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
     }
 
     @GetMapping("/project/{projectId}/status/{status}")
