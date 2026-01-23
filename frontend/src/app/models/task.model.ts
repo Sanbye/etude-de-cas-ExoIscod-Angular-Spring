@@ -46,3 +46,11 @@ export interface TaskHistory {
   modifiedAt?: string;
   modifiedBy?: string;
 }
+
+export interface AssignTaskResponse {
+  task: Task;
+  userEmail: string;
+  taskTitle: string;
+  projectName: string;
+  emailSent: boolean;
+}

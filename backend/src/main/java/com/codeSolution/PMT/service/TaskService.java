@@ -28,6 +28,7 @@ public class TaskService {
     private final ProjectMemberRepository projectMemberRepository;
     private final TaskHistoryRepository taskHistoryRepository;
     private final EmailService emailService;
+    private final NotificationService notificationService;
 
     public List<Task> findAll() {
         return taskRepository.findAll();
@@ -153,7 +154,8 @@ public class TaskService {
                 previousProjectMember != null ? previousProjectMember.getUser().getEmail() : null, 
                 projectMember.getUser().getEmail());
         
-        // Envoyer une notification email
+        notificationService.createTaskAssignmentNotification(projectMember, savedTask);
+        
         emailService.sendTaskAssignmentNotification(
                 projectMember.getUser().getEmail(), 
                 task.getName(), 
@@ -193,13 +195,15 @@ public class TaskService {
         createHistoryEntry(savedTask, assignedByMember, TaskHistory.FieldName.projectMembers, 
                 previousProjectMember != null ? previousProjectMember.getUser().getEmail() : null, 
                 assigneeMember.getUser().getEmail());
-        
+
+        notificationService.createTaskAssignmentNotification(assigneeMember, savedTask);
+
         emailService.sendTaskAssignmentNotification(
                 assigneeMember.getUser().getEmail(), 
                 task.getName(), 
                 assigneeMember.getProject().getName()
         );
-        
+
         return savedTask;
     }
 

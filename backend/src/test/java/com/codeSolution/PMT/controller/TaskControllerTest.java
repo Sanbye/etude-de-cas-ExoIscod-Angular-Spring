@@ -1,12 +1,16 @@
 package com.codeSolution.PMT.controller;
 
 import com.codeSolution.PMT.dto.AssignTaskRequest;
+import com.codeSolution.PMT.dto.AssignTaskResponse;
 import com.codeSolution.PMT.dto.CreateTaskRequest;
 import com.codeSolution.PMT.dto.TaskDTO;
+import com.codeSolution.PMT.model.Project;
 import com.codeSolution.PMT.model.ProjectMember;
 import com.codeSolution.PMT.model.Role;
 import com.codeSolution.PMT.model.Task;
 import com.codeSolution.PMT.model.TaskHistory;
+import com.codeSolution.PMT.model.User;
+import com.codeSolution.PMT.service.EmailService;
 import com.codeSolution.PMT.service.TaskService;
 import com.codeSolution.PMT.util.SecurityUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +40,9 @@ class TaskControllerTest {
     @Mock
     private TaskService taskService;
 
+    @Mock
+    private EmailService emailService;
+
     @InjectMocks
     private TaskController taskController;
 
@@ -51,10 +58,21 @@ class TaskControllerTest {
         projectId = UUID.randomUUID();
         userId = UUID.randomUUID();
 
+        User testUser = new User();
+        testUser.setId(userId);
+        testUser.setEmail("test@example.com");
+        testUser.setUserName("Test User");
+
+        Project testProject = new Project();
+        testProject.setId(projectId);
+        testProject.setName("Test Project");
+
         testProjectMember = new ProjectMember();
         testProjectMember.setProjectId(projectId);
         testProjectMember.setUserId(userId);
         testProjectMember.setRole(Role.MEMBER);
+        testProjectMember.setUser(testUser);
+        testProjectMember.setProject(testProject);
 
         testTask = new Task();
         testTask.setId(taskId);
@@ -474,7 +492,6 @@ class TaskControllerTest {
 
     @Test
     void testAssignTask_Success() {
-        // Given
         UUID assignedById = UUID.randomUUID();
         AssignTaskRequest request = new AssignTaskRequest();
         request.setProjectId(projectId);
@@ -482,17 +499,28 @@ class TaskControllerTest {
         
         when(taskService.assignTask(any(UUID.class), any(AssignTaskRequest.class), any(UUID.class)))
                 .thenReturn(testTask);
+        
+        EmailService.EmailNotificationResult emailResult = new EmailService.EmailNotificationResult(
+                "test@example.com", "Test Task", "Test Project", true);
+        when(emailService.sendTaskAssignmentNotification(anyString(), anyString(), anyString()))
+                .thenReturn(emailResult);
 
         try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
             mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(assignedById);
 
-            // When
             ResponseEntity<?> response = taskController.assignTask(taskId, request);
 
-            // Then
             assertEquals(HttpStatus.OK, response.getStatusCode());
             assertNotNull(response.getBody());
+            assertTrue(response.getBody() instanceof AssignTaskResponse);
+            AssignTaskResponse assignResponse = (AssignTaskResponse) response.getBody();
+            assertEquals(testTask, assignResponse.getTask());
+            assertEquals("test@example.com", assignResponse.getUserEmail());
+            assertEquals("Test Task", assignResponse.getTaskTitle());
+            assertEquals("Test Project", assignResponse.getProjectName());
+            assertTrue(assignResponse.isEmailSent());
             verify(taskService, times(1)).assignTask(eq(taskId), eq(request), eq(assignedById));
+            verify(emailService, times(1)).sendTaskAssignmentNotification(anyString(), anyString(), anyString());
         }
     }
 

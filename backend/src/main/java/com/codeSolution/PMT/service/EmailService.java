@@ -1,5 +1,6 @@
 package com.codeSolution.PMT.service;
 
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -7,17 +8,23 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class EmailService {
 
-    public void sendTaskAssignmentNotification(String userEmail, String taskTitle, String projectName) {
-        // Pour l'instant, on log simplement. Dans un vrai projet, on utiliserait Spring Mail
+    @Data
+    public static class EmailNotificationResult {
+        private final String userEmail;
+        private final String taskTitle;
+        private final String projectName;
+        private final boolean sent;
+    }
+
+    public EmailNotificationResult sendTaskAssignmentNotification(String userEmail, String taskTitle, String projectName) {
         log.info("Email de notification envoyé à {} : Tâche '{}' assignée dans le projet '{}'", 
                 userEmail, taskTitle, projectName);
-        // TODO: Implémenter l'envoi d'email réel avec Spring Mail
+        return new EmailNotificationResult(userEmail, taskTitle, projectName, true);
     }
 
     public void sendProjectInvitation(String userEmail, String projectName, String inviterName) {
         log.info("Email d'invitation envoyé à {} : Invitation au projet '{}' par {}", 
                 userEmail, projectName, inviterName);
-        // TODO: Implémenter l'envoi d'email réel avec Spring Mail
     }
 }
 

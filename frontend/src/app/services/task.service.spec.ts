@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { TaskService } from './task.service';
-import { Task, TaskStatus, TaskPriority } from '../models/task.model';
+import { Task, TaskStatus, TaskPriority, AssignTaskResponse } from '../models/task.model';
 import { environment } from '../../environments/environment';
 import { SessionService } from './session.service';
 import { AuthResponse } from '../models/auth.model';
@@ -194,10 +194,22 @@ describe('TaskService', () => {
       assignedUserId: userId,
       projectId: projectId
     };
+    const assignResponse: AssignTaskResponse = {
+      task: assignedTask,
+      userEmail: 'user@example.com',
+      taskTitle: 'Assigned Task',
+      projectName: 'Test Project',
+      emailSent: true
+    };
 
-    service.assignTask(taskId, projectId, userId).subscribe(task => {
-      expect(task).toEqual(assignedTask);
-      expect(task.assignedUserId).toBe(userId);
+    service.assignTask(taskId, projectId, userId).subscribe(response => {
+      expect(response).toEqual(assignResponse);
+      expect(response.task).toEqual(assignedTask);
+      expect(response.task.assignedUserId).toBe(userId);
+      expect(response.userEmail).toBe('user@example.com');
+      expect(response.taskTitle).toBe('Assigned Task');
+      expect(response.projectName).toBe('Test Project');
+      expect(response.emailSent).toBe(true);
     });
 
     const req = httpMock.expectOne(`${apiUrl}/${taskId}/assign`);
@@ -207,7 +219,7 @@ describe('TaskService', () => {
       projectId: projectId,
       userId: userId
     });
-    req.flush(assignedTask);
+    req.flush(assignResponse);
   });
 });
 

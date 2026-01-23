@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Task, TaskHistory } from '../models/task.model';
+import { Task, TaskHistory, AssignTaskResponse } from '../models/task.model';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -42,8 +42,8 @@ export class TaskService {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
 
-  assignTask(taskId: string, projectId: string, userId: string): Observable<Task> {
-    return this.http.post<Task>(`${this.apiUrl}/${taskId}/assign`, {
+  assignTask(taskId: string, projectId: string, userId: string): Observable<AssignTaskResponse> {
+    return this.http.post<AssignTaskResponse>(`${this.apiUrl}/${taskId}/assign`, {
       projectId: projectId,
       userId: userId
     });

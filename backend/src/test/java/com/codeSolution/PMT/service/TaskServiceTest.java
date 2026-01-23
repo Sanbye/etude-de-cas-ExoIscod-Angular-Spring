@@ -1,6 +1,7 @@
 package com.codeSolution.PMT.service;
 
 import com.codeSolution.PMT.dto.CreateTaskRequest;
+import com.codeSolution.PMT.model.Notification;
 import com.codeSolution.PMT.model.ProjectMember;
 import com.codeSolution.PMT.model.Role;
 import com.codeSolution.PMT.model.Task;
@@ -8,6 +9,7 @@ import com.codeSolution.PMT.model.TaskHistory;
 import com.codeSolution.PMT.repository.ProjectMemberRepository;
 import com.codeSolution.PMT.repository.TaskHistoryRepository;
 import com.codeSolution.PMT.repository.TaskRepository;
+import com.codeSolution.PMT.service.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +41,9 @@ class TaskServiceTest {
 
     @Mock
     private EmailService emailService;
+
+    @Mock
+    private NotificationService notificationService;
 
     @Mock
     private ProjectService projectService;

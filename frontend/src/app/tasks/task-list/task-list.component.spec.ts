@@ -4,7 +4,7 @@ import { TaskService } from '../../services/task.service';
 import { ProjectService } from '../../services/project.service';
 import { SessionService } from '../../services/session.service';
 import { of, throwError, Subject } from 'rxjs';
-import { Task, TaskStatus, TaskPriority } from '../../models/task.model';
+import { Task, TaskStatus, TaskPriority, AssignTaskResponse } from '../../models/task.model';
 import { Project } from '../../models/project.model';
 import { AuthResponse } from '../../models/auth.model';
 import { provideRouter } from '@angular/router';
@@ -151,10 +151,18 @@ describe('TaskListComponent', () => {
   }));
 
   it('should assign a task to a member', fakeAsync(() => {
+    const mockAssignResponse: AssignTaskResponse = {
+      task: mockTasks[0],
+      userEmail: 'user1@example.com',
+      taskTitle: 'Task 1',
+      projectName: 'Project 1',
+      emailSent: true
+    };
+    
     projectService.getAllProjects.and.returnValue(of(mockProjects));
     taskService.getTasksByProject.and.returnValue(of(mockTasks));
     projectService.getProjectMembers.and.returnValue(of(mockMembers));
-    taskService.assignTask.and.returnValue(of(mockTasks[0]));
+    taskService.assignTask.and.returnValue(of(mockAssignResponse));
     taskService.getTaskHistory.and.returnValue(of([]));
     
     fixture.detectChanges();
@@ -163,9 +171,17 @@ describe('TaskListComponent', () => {
     component.assignmentValues['1'] = 'user1';
     component.assignTask(mockTasks[0], '1');
     tick(); 
-    tick(1000); 
+    tick(1000);
     
     expect(taskService.assignTask).toHaveBeenCalledWith('1', '1', 'user1');
+    expect(component.showEmailNotification).toBe(true);
+    expect(component.emailNotificationInfo).not.toBeNull();
+    expect(component.emailNotificationInfo?.userEmail).toBe('user1@example.com');
+    
+    tick(5000);
+    
+    expect(component.showEmailNotification).toBe(false);
+    expect(component.emailNotificationInfo).toBeNull();
   }));
 
   it('should filter tasks by status - TODO', fakeAsync(() => {

@@ -6,10 +6,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.codeSolution.PMT.dto.AssignTaskRequest;
+import com.codeSolution.PMT.dto.AssignTaskResponse;
 import com.codeSolution.PMT.dto.CreateTaskRequest;
 import com.codeSolution.PMT.dto.TaskDTO;
 import com.codeSolution.PMT.model.Task;
 import com.codeSolution.PMT.model.TaskHistory;
+import com.codeSolution.PMT.service.EmailService;
 import com.codeSolution.PMT.service.TaskService;
 import com.codeSolution.PMT.util.SecurityUtil;
 
@@ -22,6 +24,7 @@ import java.util.UUID;
 public class TaskController {
 
     private final TaskService taskService;
+    private final EmailService emailService;
 
     @GetMapping
     public ResponseEntity<List<Task>> getAllTasks() {
@@ -144,7 +147,23 @@ public class TaskController {
             }
             
             Task task = taskService.assignTask(taskId, request, assignedById);
-            return ResponseEntity.ok(task);
+            
+            String userEmail = task.getProjectMember().getUser().getEmail();
+            String taskTitle = task.getName();
+            String projectName = task.getProjectMember().getProject().getName();
+            
+            EmailService.EmailNotificationResult emailResult = emailService.sendTaskAssignmentNotification(
+                    userEmail, taskTitle, projectName);
+            
+            AssignTaskResponse response = new AssignTaskResponse(
+                    task,
+                    emailResult.getUserEmail(),
+                    emailResult.getTaskTitle(),
+                    emailResult.getProjectName(),
+                    emailResult.isSent()
+            );
+            
+            return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }

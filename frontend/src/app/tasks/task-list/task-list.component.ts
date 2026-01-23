@@ -37,6 +37,22 @@ interface TaskGroup {
           </select>
         </div>
       </div>
+      
+      <div *ngIf="showEmailNotification && emailNotificationInfo" class="email-notification-popup">
+        <div class="popup-content">
+          <div class="popup-header">
+            <span class="popup-icon">✉️</span>
+            <h3>Email envoyé</h3>
+            <button class="popup-close" (click)="closeEmailNotification()">&times;</button>
+          </div>
+          <div class="popup-body">
+            <p>Un email de notification a été envoyé à <strong>{{ emailNotificationInfo.userEmail }}</strong></p>
+            <p class="popup-details">Tâche: <strong>{{ emailNotificationInfo.taskTitle }}</strong></p>
+            <p class="popup-details">Projet: <strong>{{ emailNotificationInfo.projectName }}</strong></p>
+          </div>
+        </div>
+      </div>
+      
       <div *ngIf="loading" class="loading">Chargement...</div>
       <div *ngIf="error" class="error">{{ error }}</div>
       <div *ngIf="!loading && !error && filteredTaskGroups.length === 0" class="empty">Aucune tâche trouvée.</div>
@@ -579,6 +595,86 @@ interface TaskGroup {
       border-color: #3498db;
       box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
     }
+    .email-notification-popup {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      animation: slideIn 0.3s ease-out;
+    }
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    .popup-content {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      min-width: 350px;
+      max-width: 450px;
+    }
+    .popup-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 1.25rem;
+      background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+      color: white;
+      border-radius: 8px 8px 0 0;
+    }
+    .popup-header h3 {
+      margin: 0;
+      flex: 1;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .popup-icon {
+      font-size: 1.5rem;
+    }
+    .popup-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+    }
+    .popup-close:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+    .popup-body {
+      padding: 1.25rem;
+    }
+    .popup-body p {
+      margin: 0.5rem 0;
+      color: #2c3e50;
+      line-height: 1.5;
+    }
+    .popup-body p:first-child {
+      margin-top: 0;
+    }
+    .popup-details {
+      font-size: 0.9rem;
+      color: #7f8c8d;
+      margin-top: 0.75rem !important;
+    }
+    .popup-body strong {
+      color: #2c3e50;
+      font-weight: 600;
+    }
   `]
 })
 export class TaskListComponent implements OnInit {
@@ -603,6 +699,9 @@ export class TaskListComponent implements OnInit {
 
   selectedStatus: string = '';
   filteredTaskGroups: TaskGroup[] = [];
+  
+  showEmailNotification: boolean = false;
+  emailNotificationInfo: { userEmail: string; taskTitle: string; projectName: string } | null = null;
 
   TaskStatus = TaskStatus;
   TaskPriority = TaskPriority;
@@ -794,10 +893,25 @@ export class TaskListComponent implements OnInit {
     this.assignmentSuccess[task.id!] = null;
 
     this.taskService.assignTask(task.id!, projectId, selectedUserId).subscribe({
-      next: (updatedTask) => {
+      next: (response) => {
         this.assignmentSuccess[task.id!] = 'Tâche assignée avec succès';
         this.assignmentValues[task.id!] = '';
         this.assigning[task.id!] = false;
+        
+        if (response.emailSent) {
+          this.emailNotificationInfo = {
+            userEmail: response.userEmail,
+            taskTitle: response.taskTitle,
+            projectName: response.projectName
+          };
+          this.showEmailNotification = true;
+          
+          setTimeout(() => {
+            this.showEmailNotification = false;
+            this.emailNotificationInfo = null;
+          }, 5000);
+        }
+        
         this.reloadTasksForProject(projectId, () => {
           if (task.id) {
             this.reloadTaskHistory(task.id);
@@ -977,5 +1091,10 @@ export class TaskListComponent implements OnInit {
       'projectMembers': 'Assignation'
     };
     return fieldNames[fieldName] || fieldName;
+  }
+
+  closeEmailNotification(): void {
+    this.showEmailNotification = false;
+    this.emailNotificationInfo = null;
   }
 }
