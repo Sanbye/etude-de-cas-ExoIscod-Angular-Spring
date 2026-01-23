@@ -4,7 +4,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.codeSolution.PMT.dto.AssignTaskRequest;
+import com.codeSolution.PMT.dto.CreateTaskRequest;
+import com.codeSolution.PMT.dto.ProjectMemberDTO;
+import com.codeSolution.PMT.dto.TaskDTO;
 import com.codeSolution.PMT.model.ProjectMember;
+import com.codeSolution.PMT.model.Role;
 import com.codeSolution.PMT.model.Task;
 import com.codeSolution.PMT.model.TaskHistory;
 import com.codeSolution.PMT.repository.ProjectMemberRepository;
@@ -37,6 +42,13 @@ public class TaskService {
         return taskRepository.findByProjectId(projectId);
     }
 
+    public List<TaskDTO> findTaskDTOsByProjectId(UUID projectId) {
+        List<Task> tasks = taskRepository.findByProjectId(projectId);
+        return tasks.stream()
+                .map(TaskDTO::fromTask)
+                .toList();
+    }
+
     public List<Task> findByAssignedUserId(UUID userId) {
         return taskRepository.findByAssignedUserId(userId);
     }
@@ -65,6 +77,32 @@ public class TaskService {
         return savedTask;
     }
 
+    public Task createTask(CreateTaskRequest request, UUID creatorId) {
+        ProjectMember projectMember = projectMemberRepository
+                .findByProjectIdAndUserId(request.getProjectId(), creatorId)
+                .orElseThrow(() -> new RuntimeException("You must be a member or administrator of the project to create tasks."));
+        
+        if (projectMember.getRole() != Role.ADMIN && 
+            projectMember.getRole() != Role.MEMBER) {
+            throw new RuntimeException("You must be a member or administrator of the project to create tasks.");
+        }
+
+        Task task = new Task();
+        task.setName(request.getName());
+        task.setDescription(request.getDescription());
+        task.setDueDate(request.getDueDate());
+        task.setPriority(request.getPriority() != null ? request.getPriority() : Task.TaskPriority.MEDIUM);
+        task.setStatus(Task.TaskStatus.TODO);
+        task.setProjectMember(projectMember);
+
+        Task savedTask = taskRepository.save(task);
+
+        // Créer une entrée d'historique
+        createHistoryEntry(savedTask, projectMember, TaskHistory.FieldName.name, null, savedTask.getName());
+
+        return savedTask;
+    }
+
     public Task save(Task task) {
         return taskRepository.save(task);
     }
@@ -90,7 +128,7 @@ public class TaskService {
                 .findByProjectIdAndUserId(assignedByProjectMemberProjectId, assignedByProjectMemberUserId)
                 .orElseThrow(() -> new RuntimeException("Assigned by ProjectMember not found"));
         
-        createHistoryEntry(savedTask, assignedByProjectMember, TaskHistory.FieldName.status, 
+        createHistoryEntry(savedTask, assignedByProjectMember, TaskHistory.FieldName.projectMembers, 
                 previousProjectMember != null ? previousProjectMember.getUser().getEmail() : null, 
                 projectMember.getUser().getEmail());
         
@@ -99,6 +137,46 @@ public class TaskService {
                 projectMember.getUser().getEmail(), 
                 task.getName(), 
                 projectMember.getProject().getName()
+        );
+        
+        return savedTask;
+    }
+
+    public Task assignTask(UUID taskId, AssignTaskRequest request, UUID assignedById) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+        
+        UUID taskProjectId = task.getProjectMember().getProjectId();
+        
+        ProjectMember assignedByMember = projectMemberRepository
+                .findByProjectIdAndUserId(taskProjectId, assignedById)
+                .orElseThrow(() -> new RuntimeException("You must be a member or administrator of the project to assign tasks."));
+        
+        if (assignedByMember.getRole() != Role.ADMIN && assignedByMember.getRole() != Role.MEMBER) {
+            throw new RuntimeException("You must be a member or administrator of the project to assign tasks.");
+        }
+        
+        // Vérifier que le membre à assigner appartient au même projet
+        ProjectMember assigneeMember = projectMemberRepository
+                .findByProjectIdAndUserId(request.getProjectId(), request.getUserId())
+                .orElseThrow(() -> new RuntimeException("The user is not a member of this project."));
+        
+        if (!assigneeMember.getProjectId().equals(taskProjectId)) {
+            throw new RuntimeException("The user must be a member of the same project as the task.");
+        }
+        
+        ProjectMember previousProjectMember = task.getProjectMember();
+        task.setProjectMember(assigneeMember);
+        Task savedTask = taskRepository.save(task);
+        
+        createHistoryEntry(savedTask, assignedByMember, TaskHistory.FieldName.projectMembers, 
+                previousProjectMember != null ? previousProjectMember.getUser().getEmail() : null, 
+                assigneeMember.getUser().getEmail());
+        
+        emailService.sendTaskAssignmentNotification(
+                assigneeMember.getUser().getEmail(), 
+                task.getName(), 
+                assigneeMember.getProject().getName()
         );
         
         return savedTask;

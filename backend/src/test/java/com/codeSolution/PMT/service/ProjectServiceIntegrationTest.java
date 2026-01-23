@@ -235,8 +235,8 @@ class ProjectServiceIntegrationTest {
         UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
         request.setRole(Role.ADMIN);
 
-        // When
-        Project result = projectService.updateMemberRole(testProject.getId(), testUser2.getId(), request);
+        // When - testUser1 est déjà ADMIN 
+        Project result = projectService.updateMemberRole(testProject.getId(), testUser2.getId(), request, testUser1.getId());
 
         // Then
         assertNotNull(result);
@@ -252,9 +252,9 @@ class ProjectServiceIntegrationTest {
         UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
         request.setRole(Role.ADMIN);
 
-        // When & Then
+        // When & Then - testUser1 est déjà ADMIN (configuré dans setUp)
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            projectService.updateMemberRole(testProject.getId(), testUser2.getId(), request);
+            projectService.updateMemberRole(testProject.getId(), testUser2.getId(), request, testUser1.getId());
         });
 
         assertEquals("Member not found in project", exception.getMessage());

@@ -290,35 +290,45 @@ class ProjectControllerTest {
     @Test
     void testUpdateMemberRole_Success() {
         // Given
+        UUID modifierId = UUID.randomUUID();
         UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
         request.setRole(Role.ADMIN);
-        when(projectService.updateMemberRole(any(UUID.class), any(UUID.class), any(UpdateMemberRoleRequest.class)))
+        when(projectService.updateMemberRole(any(UUID.class), any(UUID.class), any(UpdateMemberRoleRequest.class), any(UUID.class)))
                 .thenReturn(testProject);
 
-        // When
-        ResponseEntity<?> response = projectController.updateMemberRole(projectId, userId, request);
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(modifierId);
 
-        // Then
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        verify(projectService, times(1)).updateMemberRole(any(UUID.class), any(UUID.class), any(UpdateMemberRoleRequest.class));
+            // When
+            ResponseEntity<?> response = projectController.updateMemberRole(projectId, userId, request);
+
+            // Then
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertNotNull(response.getBody());
+            verify(projectService, times(1)).updateMemberRole(any(UUID.class), any(UUID.class), any(UpdateMemberRoleRequest.class), eq(modifierId));
+        }
     }
 
     @Test
     void testUpdateMemberRole_WhenServiceThrowsException() {
         // Given
+        UUID modifierId = UUID.randomUUID();
         UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
         request.setRole(Role.ADMIN);
-        when(projectService.updateMemberRole(any(UUID.class), any(UUID.class), any(UpdateMemberRoleRequest.class)))
+        when(projectService.updateMemberRole(any(UUID.class), any(UUID.class), any(UpdateMemberRoleRequest.class), any(UUID.class)))
                 .thenThrow(new RuntimeException("Member not found"));
 
-        // When
-        ResponseEntity<?> response = projectController.updateMemberRole(projectId, userId, request);
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(modifierId);
 
-        // Then
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Member not found", response.getBody());
-        verify(projectService, times(1)).updateMemberRole(any(UUID.class), any(UUID.class), any(UpdateMemberRoleRequest.class));
+            // When
+            ResponseEntity<?> response = projectController.updateMemberRole(projectId, userId, request);
+
+            // Then
+            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+            assertEquals("Member not found", response.getBody());
+            verify(projectService, times(1)).updateMemberRole(any(UUID.class), any(UUID.class), any(UpdateMemberRoleRequest.class), eq(modifierId));
+        }
     }
 
     @Test

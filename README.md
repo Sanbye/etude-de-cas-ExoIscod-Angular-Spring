@@ -60,6 +60,7 @@ Application web de gestion de projets développée avec Angular (frontend) et Sp
 │   ├── .dockerignore                  # Fichiers exclus du build Docker
 │   └── package.json
 └── database/                          # Scripts SQL
+    ├── create_database_utf8.sql        # Script pour créer la base avec encodage UTF-8
     ├── schema.sql                      # Schéma de la base de données
     └── data.sql                        # Données de test
 ```
@@ -103,12 +104,25 @@ Application web de gestion de projets développée avec Angular (frontend) et Sp
 
 #### Base de données
 
-1. Créer la base de données PostgreSQL :
-```sql
-CREATE DATABASE project_management;
+1. **Créer la base de données PostgreSQL avec UTF-8** :
+
+**Option A : Utiliser le script (recommandé)** :
+```bash
+psql -U postgres -f database/create_database_utf8.sql
 ```
 
-2. Exécuter les scripts SQL dans l'ordre :
+**Option B : Créer manuellement** :
+```sql
+DROP DATABASE IF EXISTS project_management;
+CREATE DATABASE project_management
+    WITH 
+    ENCODING 'UTF8'
+    LC_COLLATE='fr_FR.UTF-8'
+    LC_CTYPE='fr_FR.UTF-8'
+    TEMPLATE template0;
+```
+
+2. **Exécuter les scripts SQL dans l'ordre** :
 
 User: postgres
 Mot de passe: postgres
@@ -307,6 +321,67 @@ cd ..
 docker stop pmt-backend pmt-frontend pmt-postgres
 docker rm pmt-backend pmt-frontend pmt-postgres
 ```
+
+## Comptes de test
+
+Pour faciliter les tests de l'application, des comptes utilisateurs sont pré-configurés dans la base de données. **Tous les utilisateurs ont le même mot de passe : `123456`**
+
+### Comptes principaux pour tester les User Stories
+
+Ces comptes sont liés au projet "Projet de Test US" et permettent de tester toutes les fonctionnalités :
+
+#### Compte Administrateur
+- **Email** : `admin@admin.gmail.com`
+- **Nom d'utilisateur** : `admin`
+- **Mot de passe** : `123456`
+- **Rôle dans le projet "Projet de Test US"** : `ADMIN`
+- **Fonctionnalités testables** :
+  - ✅ Créer un nouveau projet
+  - ✅ Inviter des membres au projet
+  - ✅ Attribuer des rôles aux membres (ADMIN, MEMBER, OBSERVER)
+  - ✅ Créer des tâches
+  - ✅ Assigner des tâches à des membres
+
+#### Compte Membre
+- **Email** : `member@member.gmail.com`
+- **Nom d'utilisateur** : `member`
+- **Mot de passe** : `123456`
+- **Rôle dans le projet "Projet de Test US"** : `MEMBER`
+- **Fonctionnalités testables** :
+  - ✅ Créer des tâches
+  - ✅ Assigner des tâches à des membres
+  - ❌ Inviter des membres (réservé aux ADMIN)
+  - ❌ Modifier les rôles (réservé aux ADMIN)
+
+### Projet de test
+
+Le projet **"Projet de Test US"** contient :
+- **2 membres** : admin (ADMIN) et member (MEMBER)
+- **4 tâches** :
+  - "Tâche assignée à Admin" (TODO, HIGH) - assignée à admin
+  - "Tâche en cours - Admin" (IN_PROGRESS, MEDIUM) - assignée à admin
+  - "Tâche assignée à Member" (TODO, MEDIUM) - assignée à member
+  - "Tâche terminée" (DONE, LOW) - assignée à admin
+
+### Scénarios de test recommandés
+
+1. **Test avec le compte ADMIN** (`admin@admin.gmail.com` / `123456`) :
+   - Se connecter
+   - Voir le projet "Projet de Test US"
+   - Cliquer sur le projet pour voir les détails
+   - Inviter un nouveau membre (utiliser un email existant comme `john.doe@example.com`)
+   - Modifier le rôle d'un membre existant
+   - Créer une nouvelle tâche
+   - Aller dans l'onglet "Tâches" et assigner une tâche à un membre
+
+2. **Test avec le compte MEMBER** (`member@member.gmail.com` / `123456`) :
+   - Se connecter
+   - Voir le projet "Projet de Test US"
+   - Cliquer sur le projet pour voir les détails
+   - Vérifier que la section "Inviter un membre" n'est pas visible
+   - Créer une nouvelle tâche
+   - Aller dans l'onglet "Tâches" et assigner une tâche à un membre
+
 
 ## API Endpoints
 

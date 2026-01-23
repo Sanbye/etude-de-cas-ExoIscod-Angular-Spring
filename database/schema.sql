@@ -1,5 +1,6 @@
 -- Script de création de la base de données
 -- Base de données: project_management
+SET client_encoding = 'UTF8';
 
 -- Extension pour UUID
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -69,7 +70,7 @@ CREATE TABLE task_history (
     CONSTRAINT fk_task_history_task FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
     CONSTRAINT fk_task_history_project_member FOREIGN KEY (project_member_project_id, project_member_user_id) 
         REFERENCES project_members(project_id, user_id) ON DELETE CASCADE,
-    CONSTRAINT chk_task_history_field_name CHECK (field_name IN ('name', 'description', 'dueDate', 'priority', 'status', 'endDate'))
+    CONSTRAINT chk_task_history_field_name CHECK (field_name IN ('name', 'description', 'dueDate', 'priority', 'status', 'endDate', 'projectMembers'))
 );
 
 -- Table des notifications

@@ -1,27 +1,51 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TaskListComponent } from './task-list.component';
 import { TaskService } from '../../services/task.service';
+import { ProjectService } from '../../services/project.service';
+import { SessionService } from '../../services/session.service';
 import { of, throwError, Subject } from 'rxjs';
 import { Task, TaskStatus, TaskPriority } from '../../models/task.model';
+import { Project } from '../../models/project.model';
+import { AuthResponse } from '../../models/auth.model';
 import { provideRouter } from '@angular/router';
 
 describe('TaskListComponent', () => {
   let component: TaskListComponent;
   let fixture: ComponentFixture<TaskListComponent>;
   let taskService: jasmine.SpyObj<TaskService>;
+  let projectService: jasmine.SpyObj<ProjectService>;
+  let sessionService: SessionService;
 
-  const mockTasks: Task[] = [
-    { id: '1', name: 'Task 1', description: 'Description 1', status: TaskStatus.TODO, priority: TaskPriority.MEDIUM },
-    { id: '2', name: 'Task 2', description: 'Description 2', status: TaskStatus.IN_PROGRESS, priority: TaskPriority.HIGH }
+  const mockProjects: Project[] = [
+    { id: '1', name: 'Project 1', description: 'Description 1', startingDate: '2024-01-01' }
   ];
 
+  const mockTasks: Task[] = [
+    { id: '1', name: 'Task 1', description: 'Description 1', status: TaskStatus.TODO, priority: TaskPriority.MEDIUM, projectId: '1' },
+    { id: '2', name: 'Task 2', description: 'Description 2', status: TaskStatus.IN_PROGRESS, priority: TaskPriority.HIGH, projectId: '1' }
+  ];
+
+  const mockMembers: any[] = [
+    { userId: 'user1', userName: 'User 1', userEmail: 'user1@example.com', role: 'ADMIN' }
+  ];
+
+  const mockUser: AuthResponse = {
+    userId: 'user1',
+    username: 'testuser',
+    email: 'test@example.com',
+    token: null
+  };
+
   beforeEach(async () => {
-    const taskServiceSpy = jasmine.createSpyObj('TaskService', ['getAllTasks']);
+    const taskServiceSpy = jasmine.createSpyObj('TaskService', ['getTasksByProject', 'assignTask']);
+    const projectServiceSpy = jasmine.createSpyObj('ProjectService', ['getAllProjects', 'getProjectMembers']);
 
     await TestBed.configureTestingModule({
       imports: [TaskListComponent],
       providers: [
         { provide: TaskService, useValue: taskServiceSpy },
+        { provide: ProjectService, useValue: projectServiceSpy },
+        SessionService,
         provideRouter([])
       ]
     }).compileComponents();
@@ -29,37 +53,42 @@ describe('TaskListComponent', () => {
     fixture = TestBed.createComponent(TaskListComponent);
     component = fixture.componentInstance;
     taskService = TestBed.inject(TaskService) as jasmine.SpyObj<TaskService>;
+    projectService = TestBed.inject(ProjectService) as jasmine.SpyObj<ProjectService>;
+    sessionService = TestBed.inject(SessionService);
+    sessionService.setCurrentUser(mockUser);
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should load tasks on init', () => {
-    taskService.getAllTasks.and.returnValue(of(mockTasks));
+  it('should load tasks grouped by project on init', () => {
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    taskService.getTasksByProject.and.returnValue(of(mockTasks));
+    projectService.getProjectMembers.and.returnValue(of(mockMembers));
 
     fixture.detectChanges();
 
-    expect(component.tasks).toEqual(mockTasks);
+    expect(component.taskGroups.length).toBeGreaterThan(0);
     expect(component.loading).toBe(false);
     expect(component.error).toBeNull();
-    expect(taskService.getAllTasks).toHaveBeenCalled();
+    expect(projectService.getAllProjects).toHaveBeenCalled();
   });
 
-  it('should handle error when loading tasks', () => {
-    const errorMessage = 'Error loading tasks';
-    taskService.getAllTasks.and.returnValue(throwError(() => ({ message: errorMessage })));
+  it('should handle error when loading projects', () => {
+    const errorMessage = 'Error loading projects';
+    projectService.getAllProjects.and.returnValue(throwError(() => ({ message: errorMessage })));
 
     fixture.detectChanges();
 
-    expect(component.tasks).toEqual([]);
+    expect(component.taskGroups).toEqual([]);
     expect(component.loading).toBe(false);
-    expect(component.error).toBe('Impossible de charger les tâches. Vérifiez que le backend est démarré.');
+    expect(component.error).toBe('Impossible de charger les projets. Vérifiez que le backend est démarré.');
   });
 
   it('should display loading state', () => {
-    const tasksSubject = new Subject<Task[]>();
-    taskService.getAllTasks.and.returnValue(tasksSubject.asObservable());
+    const projectsSubject = new Subject<Project[]>();
+    projectService.getAllProjects.and.returnValue(projectsSubject.asObservable());
     
     fixture.detectChanges();
     expect(component.loading).toBe(true);
@@ -67,12 +96,14 @@ describe('TaskListComponent', () => {
     const loadingElement = compiled.querySelector('.loading');
     expect(loadingElement).toBeTruthy();
     
-    tasksSubject.next(mockTasks);
-    tasksSubject.complete();
+    projectsSubject.next(mockProjects);
+    projectsSubject.complete();
   });
 
   it('should display error message', () => {
-    taskService.getAllTasks.and.returnValue(of(mockTasks));
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    taskService.getTasksByProject.and.returnValue(of(mockTasks));
+    projectService.getProjectMembers.and.returnValue(of(mockMembers));
     
     fixture.detectChanges();
     component.error = 'Test error';
@@ -86,8 +117,10 @@ describe('TaskListComponent', () => {
     expect(errorElement?.textContent).toContain('Test error');
   });
 
-  it('should display tasks grid when tasks are loaded', () => {
-    taskService.getAllTasks.and.returnValue(of(mockTasks));
+  it('should display tasks grouped by project when loaded', () => {
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    taskService.getTasksByProject.and.returnValue(of(mockTasks));
+    projectService.getProjectMembers.and.returnValue(of(mockMembers));
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
@@ -96,13 +129,29 @@ describe('TaskListComponent', () => {
   });
 
   it('should display empty message when no tasks', () => {
-    taskService.getAllTasks.and.returnValue(of([]));
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    taskService.getTasksByProject.and.returnValue(of([]));
+    projectService.getProjectMembers.and.returnValue(of(mockMembers));
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
     const emptyElement = compiled.querySelector('.empty');
     expect(emptyElement).toBeTruthy();
     expect(emptyElement?.textContent).toContain('Aucune tâche trouvée');
+  });
+
+  it('should assign a task to a member', () => {
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    taskService.getTasksByProject.and.returnValue(of(mockTasks));
+    projectService.getProjectMembers.and.returnValue(of(mockMembers));
+    taskService.assignTask.and.returnValue(of(mockTasks[0]));
+    
+    fixture.detectChanges();
+    
+    component.assignmentValues['1'] = 'user1';
+    component.assignTask(mockTasks[0], '1');
+    
+    expect(taskService.assignTask).toHaveBeenCalledWith('1', '1', 'user1');
   });
 });
 

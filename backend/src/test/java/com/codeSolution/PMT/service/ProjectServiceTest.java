@@ -196,19 +196,29 @@ class ProjectServiceTest {
     @Test
     void testUpdateMemberRole_Success() {
         // Given
+        UUID modifierId = UUID.randomUUID();
         UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
         request.setRole(Role.ADMIN);
 
+        // Créer un ProjectMember pour le modificateur (ADMIN)
+        ProjectMember modifierMember = new ProjectMember();
+        modifierMember.setProjectId(projectId);
+        modifierMember.setUserId(modifierId);
+        modifierMember.setRole(Role.ADMIN);
+
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, modifierId))
+                .thenReturn(Optional.of(modifierMember));
         when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
                 .thenReturn(Optional.of(testProjectMember));
         when(projectMemberRepository.save(any(ProjectMember.class))).thenReturn(testProjectMember);
         when(projectRepository.findById(projectId)).thenReturn(Optional.of(testProject));
 
         // When
-        Project result = projectService.updateMemberRole(projectId, userId, request);
+        Project result = projectService.updateMemberRole(projectId, userId, request, modifierId);
 
         // Then
         assertNotNull(result);
+        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, modifierId);
         verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, userId);
         verify(projectMemberRepository, times(1)).save(any(ProjectMember.class));
         verify(projectRepository, times(1)).findById(projectId);

@@ -6,6 +6,17 @@ export interface Task {
   priority: TaskPriority;
   dueDate?: string;
   endDate?: string;
+  projectId?: string;
+  assignedUserId?: string;
+  projectMembers?: ProjectMember[];
+}
+
+export interface ProjectMember {
+  projectId: string;
+  userId: string;
+  userEmail?: string;
+  userName?: string;
+  role: Role;
 }
 
 export enum TaskStatus {

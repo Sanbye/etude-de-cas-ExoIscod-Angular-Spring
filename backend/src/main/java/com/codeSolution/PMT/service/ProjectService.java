@@ -95,7 +95,11 @@ public class ProjectService {
         return projectRepository.findById(projectId).orElse(project);
     }
 
-    public Project updateMemberRole(UUID projectId, UUID userId, UpdateMemberRoleRequest request) {
+    public Project updateMemberRole(UUID projectId, UUID userId, UpdateMemberRoleRequest request, UUID modifierId) {
+        if (!isProjectAdmin(projectId, modifierId)) {
+            throw new RuntimeException("Only project administrators can update member roles.");
+        }
+
         ProjectMember member = projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
                 .orElseThrow(() -> new RuntimeException("Member not found in project"));
         
@@ -143,6 +147,18 @@ public class ProjectService {
                     );
                 })
                 .collect(Collectors.toList());
+    }
+
+    public boolean isProjectAdmin(UUID projectId, UUID userId) {
+        return projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
+                .map(member -> member.getRole() == Role.ADMIN)
+                .orElse(false);
+    }
+
+    public boolean isProjectMember(UUID projectId, UUID userId) {
+        return projectMemberRepository.findByProjectIdAndUserId(projectId, userId)
+                .map(member -> member.getRole() == Role.ADMIN || member.getRole() == Role.MEMBER)
+                .orElse(false);
     }
 }
 

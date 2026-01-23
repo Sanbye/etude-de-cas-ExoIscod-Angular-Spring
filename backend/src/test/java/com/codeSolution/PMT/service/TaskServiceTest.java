@@ -1,6 +1,8 @@
 package com.codeSolution.PMT.service;
 
+import com.codeSolution.PMT.dto.CreateTaskRequest;
 import com.codeSolution.PMT.model.ProjectMember;
+import com.codeSolution.PMT.model.Role;
 import com.codeSolution.PMT.model.Task;
 import com.codeSolution.PMT.model.TaskHistory;
 import com.codeSolution.PMT.repository.ProjectMemberRepository;
@@ -37,6 +39,9 @@ class TaskServiceTest {
 
     @Mock
     private EmailService emailService;
+
+    @Mock
+    private ProjectService projectService;
 
     @InjectMocks
     private TaskService taskService;
@@ -203,6 +208,85 @@ class TaskServiceTest {
         assertEquals(1, result.size());
         assertEquals(history, result.get(0));
         verify(taskHistoryRepository, times(1)).findByTaskIdOrderByModifiedAtDesc(taskId);
+    }
+
+    @Test
+    void testCreateTask_Success() {
+        // Given
+        UUID creatorId = UUID.randomUUID();
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setProjectId(projectId);
+        request.setName("New Task");
+        request.setDescription("Task Description");
+        request.setDueDate(LocalDate.now().plusDays(7));
+        request.setPriority(Task.TaskPriority.HIGH);
+
+        testProjectMember.setRole(Role.MEMBER);
+
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, creatorId))
+                .thenReturn(Optional.of(testProjectMember));
+        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> {
+            Task task = invocation.getArgument(0);
+            task.setId(taskId);
+            return task;
+        });
+        when(taskHistoryRepository.save(any(TaskHistory.class))).thenReturn(new TaskHistory());
+
+        // When
+        Task result = taskService.createTask(request, creatorId);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("New Task", result.getName());
+        assertEquals("Task Description", result.getDescription());
+        assertEquals(Task.TaskPriority.HIGH, result.getPriority());
+        assertEquals(Task.TaskStatus.TODO, result.getStatus());
+        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, creatorId);
+        verify(taskRepository, times(1)).save(any(Task.class));
+        verify(taskHistoryRepository, times(1)).save(any(TaskHistory.class));
+    }
+
+    @Test
+    void testCreateTask_WhenUserNotMember() {
+        // Given
+        UUID creatorId = UUID.randomUUID();
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setProjectId(projectId);
+        request.setName("New Task");
+
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, creatorId))
+                .thenReturn(Optional.empty());
+
+        // When & Then
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            taskService.createTask(request, creatorId);
+        });
+
+        assertEquals("You must be a member or administrator of the project to create tasks.", exception.getMessage());
+        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, creatorId);
+        verify(taskRepository, never()).save(any(Task.class));
+    }
+
+    @Test
+    void testCreateTask_WhenProjectMemberIsObserver() {
+        // Given
+        UUID creatorId = UUID.randomUUID();
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setProjectId(projectId);
+        request.setName("New Task");
+
+        testProjectMember.setRole(Role.OBSERVER);
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, creatorId))
+                .thenReturn(Optional.of(testProjectMember));
+
+        // When & Then
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            taskService.createTask(request, creatorId);
+        });
+
+        assertEquals("You must be a member or administrator of the project to create tasks.", exception.getMessage());
+        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, creatorId);
+        verify(taskRepository, never()).save(any(Task.class));
     }
 }
 

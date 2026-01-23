@@ -5,9 +5,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.codeSolution.PMT.dto.AssignTaskRequest;
+import com.codeSolution.PMT.dto.CreateTaskRequest;
+import com.codeSolution.PMT.dto.TaskDTO;
 import com.codeSolution.PMT.model.Task;
 import com.codeSolution.PMT.model.TaskHistory;
 import com.codeSolution.PMT.service.TaskService;
+import com.codeSolution.PMT.util.SecurityUtil;
 
 import java.util.List;
 import java.util.UUID;
@@ -33,8 +37,8 @@ public class TaskController {
     }
 
     @GetMapping("/project/{projectId}")
-    public ResponseEntity<List<Task>> getTasksByProject(@PathVariable UUID projectId) {
-        List<Task> tasks = taskService.findByProjectId(projectId);
+    public ResponseEntity<List<TaskDTO>> getTasksByProject(@PathVariable UUID projectId) {
+        List<TaskDTO> tasks = taskService.findTaskDTOsByProjectId(projectId);
         return ResponseEntity.ok(tasks);
     }
 
@@ -63,12 +67,18 @@ public class TaskController {
     }
 
     @PostMapping
-    public ResponseEntity<Task> createTask(@RequestBody Task task) {
-        // Pour l'instant, on utilise des UUID par défaut. Dans un vrai projet, on récupérerait depuis le token JWT
-        UUID projectMemberProjectId = UUID.fromString("20000000-0000-0000-0000-000000000001"); // TODO: Récupérer depuis le token JWT
-        UUID projectMemberUserId = UUID.fromString("10000000-0000-0000-0000-000000000001"); // TODO: Récupérer depuis le token JWT
-        Task savedTask = taskService.save(task, projectMemberProjectId, projectMemberUserId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedTask);
+    public ResponseEntity<?> createTask(@RequestBody CreateTaskRequest request) {
+        try {
+            UUID creatorId = SecurityUtil.getCurrentUserId();
+            if (creatorId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            Task savedTask = taskService.createTask(request, creatorId);
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedTask);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
 
     @PutMapping("/{id}")
@@ -93,19 +103,19 @@ public class TaskController {
         return ResponseEntity.notFound().build();
     }
 
-    @PostMapping("/{taskId}/assign/{projectMemberProjectId}/{projectMemberUserId}")
-    public ResponseEntity<Task> assignTask(@PathVariable UUID taskId, 
-                                          @PathVariable UUID projectMemberProjectId,
-                                          @PathVariable UUID projectMemberUserId) {
+    @PostMapping("/{taskId}/assign")
+    public ResponseEntity<?> assignTask(@PathVariable UUID taskId, 
+                                        @RequestBody AssignTaskRequest request) {
         try {
-            // Pour l'instant, on utilise des UUID par défaut. Dans un vrai projet, on récupérerait depuis le token JWT
-            UUID assignedByProjectMemberProjectId = UUID.fromString("20000000-0000-0000-0000-000000000001"); // TODO: Récupérer depuis le token JWT
-            UUID assignedByProjectMemberUserId = UUID.fromString("10000000-0000-0000-0000-000000000001"); // TODO: Récupérer depuis le token JWT
-            Task task = taskService.assignToProjectMember(taskId, projectMemberProjectId, projectMemberUserId, 
-                    assignedByProjectMemberProjectId, assignedByProjectMemberUserId);
+            UUID assignedById = SecurityUtil.getCurrentUserId();
+            if (assignedById == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            
+            Task task = taskService.assignTask(taskId, request, assignedById);
             return ResponseEntity.ok(task);
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
 }

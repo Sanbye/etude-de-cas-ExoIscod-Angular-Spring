@@ -39,5 +39,9 @@ export class ProjectService {
   getProjectMembers(projectId: string): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/${projectId}/members`);
   }
+
+  updateMemberRole(projectId: string, userId: string, role: string): Observable<Project> {
+    return this.http.put<Project>(`${this.apiUrl}/${projectId}/members/${userId}/role`, { role });
+  }
 }
 

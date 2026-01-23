@@ -99,7 +99,12 @@ public class ProjectController {
                                               @PathVariable UUID userId,
                                               @RequestBody UpdateMemberRoleRequest request) {
         try {
-            Project project = projectService.updateMemberRole(projectId, userId, request);
+            UUID modifierId = SecurityUtil.getCurrentUserId();
+            if (modifierId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            
+            Project project = projectService.updateMemberRole(projectId, userId, request, modifierId);
             return ResponseEntity.ok(project);
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());

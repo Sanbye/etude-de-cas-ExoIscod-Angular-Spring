@@ -52,7 +52,8 @@ public class TaskHistory {
         dueDate,
         priority,
         status,
-        endDate
+        endDate,
+        projectMembers
     }
 }
 

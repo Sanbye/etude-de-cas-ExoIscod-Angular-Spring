@@ -1,18 +1,19 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { ProjectService } from '../../services/project.service';
 import { Project } from '../../models/project.model';
 import { InviteMemberRequest } from '../../models/invite-member.model';
-import { Role } from '../../models/task.model';
+import { Role, TaskPriority } from '../../models/task.model';
 import { SessionService } from '../../services/session.service';
 import { AuthResponse } from '../../models/auth.model';
+import { TaskService } from '../../services/task.service';
 
 @Component({
   selector: 'app-project-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, FormsModule],
   template: `
     <div class="project-detail-container">
       <div class="header-actions">
@@ -60,6 +61,7 @@ import { AuthResponse } from '../../models/auth.model';
                 [class.error]="isFieldInvalid('role')"
               >
                 <option value="">Sélectionner un rôle</option>
+                <option [value]="Role.ADMIN">Administrateur</option>
                 <option [value]="Role.MEMBER">Membre</option>
                 <option [value]="Role.OBSERVER">Observateur</option>
               </select>
@@ -83,6 +85,80 @@ import { AuthResponse } from '../../models/auth.model';
           </form>
         </div>
 
+        <div class="tasks-section" *ngIf="isProjectMember">
+          <h4>Créer une tâche</h4>
+          <form [formGroup]="taskForm" (ngSubmit)="onCreateTask()">
+            <div class="form-group">
+              <label for="taskName">Nom de la tâche *</label>
+              <input
+                type="text"
+                id="taskName"
+                formControlName="name"
+                class="form-control"
+                [class.error]="isTaskFieldInvalid('name')"
+                placeholder="Nom de la tâche"
+              />
+              <div *ngIf="isTaskFieldInvalid('name')" class="error-message">
+                Le nom de la tâche est requis
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="taskDescription">Description</label>
+              <textarea
+                id="taskDescription"
+                formControlName="description"
+                class="form-control"
+                rows="3"
+                placeholder="Description de la tâche"
+              ></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="taskDueDate">Date d'échéance</label>
+                <input
+                  type="date"
+                  id="taskDueDate"
+                  formControlName="dueDate"
+                  class="form-control"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="taskPriority">Priorité *</label>
+                <select
+                  id="taskPriority"
+                  formControlName="priority"
+                  class="form-control"
+                  [class.error]="isTaskFieldInvalid('priority')"
+                >
+                  <option value="">Sélectionner une priorité</option>
+                  <option [value]="TaskPriority.LOW">Basse</option>
+                  <option [value]="TaskPriority.MEDIUM">Moyenne</option>
+                  <option [value]="TaskPriority.HIGH">Haute</option>
+                </select>
+                <div *ngIf="isTaskFieldInvalid('priority')" class="error-message">
+                  La priorité est requise
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="taskError" class="alert alert-error">
+              {{ taskError }}
+            </div>
+
+            <div *ngIf="taskSuccess" class="alert alert-success">
+              {{ taskSuccess }}
+            </div>
+
+            <button type="submit" class="btn btn-primary" [disabled]="taskForm.invalid || creatingTask">
+              <span *ngIf="creatingTask">Création en cours...</span>
+              <span *ngIf="!creatingTask">Créer la tâche</span>
+            </button>
+          </form>
+        </div>
+
         <div class="members-section">
           <h4>Membres du projet</h4>
           <div *ngIf="loadingMembers" class="loading">Chargement des membres...</div>
@@ -93,9 +169,54 @@ import { AuthResponse } from '../../models/auth.model';
                 <span class="member-name">{{ getMemberName(member) }}</span>
                 <span class="member-email" *ngIf="getMemberEmail(member)">{{ getMemberEmail(member) }}</span>
               </div>
-              <span class="member-role" [class]="'role-' + member.role.toLowerCase()">
-                {{ member.role }}
-              </span>
+              <div class="member-role-section">
+                <!-- Mode affichage -->
+                <div *ngIf="!editingRoles[member.userId]" class="role-display">
+                  <span class="member-role" [class]="'role-' + member.role.toLowerCase()">
+                    {{ getRoleLabel(member.role) }}
+                  </span>
+                  <button
+                    *ngIf="isProjectAdmin && !isCurrentUser(member)"
+                    (click)="startEditingRole(member)"
+                    class="btn-edit-role"
+                    [disabled]="updatingRoles[member.userId]"
+                  >
+                    Modifier
+                  </button>
+                </div>
+                
+                <!-- Mode édition -->
+                <div *ngIf="editingRoles[member.userId]" class="role-edit">
+                  <select
+                    [(ngModel)]="editingRoleValues[member.userId]"
+                    class="role-select"
+                    [disabled]="updatingRoles[member.userId]"
+                  >
+                    <option [value]="Role.ADMIN">Administrateur</option>
+                    <option [value]="Role.MEMBER">Membre</option>
+                    <option [value]="Role.OBSERVER">Observateur</option>
+                  </select>
+                  <div class="edit-actions">
+                    <button
+                      (click)="saveRoleChange(member)"
+                      class="btn-save-role"
+                      [disabled]="updatingRoles[member.userId]"
+                    >
+                      Sauvegarder
+                    </button>
+                    <button
+                      (click)="cancelEditingRole(member.userId)"
+                      class="btn-cancel-role"
+                      [disabled]="updatingRoles[member.userId]"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                  <span *ngIf="updatingRoles[member.userId]" class="updating-indicator">
+                    Mise à jour...
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -145,7 +266,54 @@ import { AuthResponse } from '../../models/auth.model';
     .project-info {
       margin-bottom: 2rem;
       padding-bottom: 2rem;
-      border-bottom: 1px solid #eee;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .invite-section,
+    .tasks-section,
+    .members-section {
+      margin-bottom: 2.5rem;
+      padding: 1.5rem;
+      background-color: #ffffff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .invite-section {
+      border-left: 4px solid #3498db;
+    }
+
+    .tasks-section {
+      border-left: 4px solid #27ae60;
+    }
+
+    .members-section {
+      border-left: 4px solid #9b59b6;
+    }
+
+    .invite-section h4,
+    .tasks-section h4,
+    .members-section h4 {
+      margin-top: 0;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid #f0f0f0;
+      color: #2c3e50;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .invite-section h4 {
+      color: #3498db;
+    }
+
+    .tasks-section h4 {
+      color: #27ae60;
+    }
+
+    .members-section h4 {
+      color: #9b59b6;
     }
 
     .project-info h3 {
@@ -167,16 +335,6 @@ import { AuthResponse } from '../../models/auth.model';
       font-size: 0.9rem;
     }
 
-    .invite-section, .members-section {
-      margin-top: 2rem;
-      padding-top: 2rem;
-      border-top: 1px solid #eee;
-    }
-
-    .invite-section h4, .members-section h4 {
-      color: #2c3e50;
-      margin-bottom: 1rem;
-    }
 
     .form-group {
       margin-bottom: 1.5rem;
@@ -312,6 +470,110 @@ import { AuthResponse } from '../../models/auth.model';
       color: white;
     }
 
+    .member-role-section {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .role-display {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .role-edit {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-edit-role {
+      padding: 0.25rem 0.75rem;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .btn-edit-role:hover:not(:disabled) {
+      background-color: #2980b9;
+    }
+
+    .btn-edit-role:disabled {
+      background-color: #bdc3c7;
+      cursor: not-allowed;
+    }
+
+    .edit-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .btn-save-role, .btn-cancel-role {
+      padding: 0.25rem 0.75rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .btn-save-role {
+      background-color: #27ae60;
+      color: white;
+    }
+
+    .btn-save-role:hover:not(:disabled) {
+      background-color: #229954;
+    }
+
+    .btn-cancel-role {
+      background-color: #95a5a6;
+      color: white;
+    }
+
+    .btn-cancel-role:hover:not(:disabled) {
+      background-color: #7f8c8d;
+    }
+
+    .btn-save-role:disabled, .btn-cancel-role:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .role-select {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      background-color: white;
+      cursor: pointer;
+      transition: border-color 0.3s;
+    }
+
+    .role-select:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .role-select:disabled {
+      background-color: #f8f9fa;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .updating-indicator {
+      font-size: 0.75rem;
+      color: #7f8c8d;
+      font-style: italic;
+    }
+
     .loading, .error, .empty {
       text-align: center;
       padding: 2rem;
@@ -334,13 +596,23 @@ export class ProjectDetailComponent implements OnInit {
   inviteError: string | null = null;
   inviteSuccess: string | null = null;
   Role = Role;
+  TaskPriority = TaskPriority;
   currentUser: AuthResponse | null = null;
   isProjectAdmin = false;
+  isProjectMember = false;
+  updatingRoles: { [userId: string]: boolean } = {};
+  editingRoles: { [userId: string]: boolean } = {};
+  editingRoleValues: { [userId: string]: Role } = {};
+  taskForm!: FormGroup;
+  creatingTask = false;
+  taskError: string | null = null;
+  taskSuccess: string | null = null;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private projectService: ProjectService,
+    private taskService: TaskService,
     private fb: FormBuilder,
     private sessionService: SessionService
   ) {}
@@ -356,6 +628,13 @@ export class ProjectDetailComponent implements OnInit {
     this.inviteForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       role: ['', Validators.required]
+    });
+
+    this.taskForm = this.fb.group({
+      name: ['', Validators.required],
+      description: [''],
+      dueDate: [''],
+      priority: ['', Validators.required]
     });
   }
 
@@ -377,21 +656,31 @@ export class ProjectDetailComponent implements OnInit {
   loadMembers(projectId: string): void {
     this.loadingMembers = true;
     this.isProjectAdmin = false; // Réinitialiser avant de charger
+    this.isProjectMember = false; // Réinitialiser avant de charger
+    this.members = []; // Réinitialiser la liste
     this.projectService.getProjectMembers(projectId).subscribe({
       next: (members) => {
-        this.members = members;
+        console.log('Membres reçus:', members);
+        this.members = members || [];
         this.checkIfCurrentUserIsAdmin();
         this.loadingMembers = false;
       },
       error: (err) => {
+        console.error('Erreur lors du chargement des membres:', err);
+        console.error('Status:', err.status);
+        console.error('Message:', err.message);
+        console.error('Error body:', err.error);
         this.loadingMembers = false;
         this.isProjectAdmin = false;
+        this.isProjectMember = false;
+        this.members = [];
       }
     });
   }
 
   checkIfCurrentUserIsAdmin(): void {
     this.isProjectAdmin = false; // Réinitialiser à false par défaut
+    this.isProjectMember = false; // Réinitialiser à false par défaut
     
     if (!this.currentUser || !this.currentUser.userId) {
       return;
@@ -409,10 +698,24 @@ export class ProjectDetailComponent implements OnInit {
         return memberUserId === currentUserId && String(member.role) === String(Role.ADMIN);
       }
     );
+
+    // Vérifier si l'utilisateur est membre (ADMIN ou MEMBER) du projet
+    this.isProjectMember = this.members.some(
+      (member) => {
+        const memberUserId = String(member.userId || member.user_id || '').trim().toLowerCase();
+        return memberUserId === currentUserId && 
+               (String(member.role) === String(Role.ADMIN) || String(member.role) === String(Role.MEMBER));
+      }
+    );
   }
 
   isFieldInvalid(fieldName: string): boolean {
     const field = this.inviteForm.get(fieldName);
+    return !!(field && field.invalid && (field.dirty || field.touched));
+  }
+
+  isTaskFieldInvalid(fieldName: string): boolean {
+    const field = this.taskForm.get(fieldName);
     return !!(field && field.invalid && (field.dirty || field.touched));
   }
 
@@ -465,6 +768,102 @@ export class ProjectDetailComponent implements OnInit {
     }
     // Si pas d'email, ne rien afficher
     return '';
+  }
+
+  isCurrentUser(member: any): boolean {
+    if (!this.currentUser || !this.currentUser.userId) {
+      return false;
+    }
+    const currentUserId = String(this.currentUser.userId).trim().toLowerCase();
+    const memberUserId = String(member.userId || member.user_id || '').trim().toLowerCase();
+    return currentUserId === memberUserId;
+  }
+
+  getRoleLabel(role: string): string {
+    switch (role) {
+      case Role.ADMIN:
+        return 'Administrateur';
+      case Role.MEMBER:
+        return 'Membre';
+      case Role.OBSERVER:
+        return 'Observateur';
+      default:
+        return role;
+    }
+  }
+
+  startEditingRole(member: any): void {
+    this.editingRoles[member.userId] = true;
+    this.editingRoleValues[member.userId] = member.role as Role;
+  }
+
+  cancelEditingRole(userId: string): void {
+    this.editingRoles[userId] = false;
+    delete this.editingRoleValues[userId];
+  }
+
+  saveRoleChange(member: any): void {
+    if (!this.project || !member.userId) {
+      return;
+    }
+
+    const newRole = this.editingRoleValues[member.userId];
+    
+    if (newRole === member.role) {
+      this.cancelEditingRole(member.userId);
+      return;
+    }
+
+    this.updatingRoles[member.userId] = true;
+
+    this.projectService.updateMemberRole(this.project.id!, member.userId, newRole).subscribe({
+      next: () => {
+        // Mettre à jour le rôle localement
+        member.role = newRole;
+        this.updatingRoles[member.userId] = false;
+        this.cancelEditingRole(member.userId);
+        // Recharger les membres pour s'assurer de la cohérence
+        this.loadMembers(this.project!.id!);
+      },
+      error: (err) => {
+        this.updatingRoles[member.userId] = false;
+        alert(err.error && typeof err.error === 'string' ? err.error : 'Erreur lors de la mise à jour du rôle. Veuillez réessayer.');
+      }
+    });
+  }
+
+  onCreateTask(): void {
+    if (this.taskForm.valid && this.project) {
+      this.creatingTask = true;
+      this.taskError = null;
+      this.taskSuccess = null;
+
+      const taskData = {
+        name: this.taskForm.value.name,
+        description: this.taskForm.value.description || undefined,
+        dueDate: this.taskForm.value.dueDate || undefined,
+        priority: this.taskForm.value.priority as TaskPriority
+      };
+
+      this.taskService.createTask(this.project.id!, taskData).subscribe({
+        next: () => {
+          this.taskSuccess = 'Tâche créée avec succès !';
+          this.taskForm.reset();
+          this.creatingTask = false;
+          setTimeout(() => {
+            this.taskSuccess = null;
+          }, 3000);
+        },
+        error: (err: any) => {
+          this.creatingTask = false;
+          if (err.error && typeof err.error === 'string') {
+            this.taskError = err.error;
+          } else {
+            this.taskError = 'Erreur lors de la création de la tâche. Veuillez réessayer.';
+          }
+        }
+      });
+    }
   }
 
   goBack(): void {

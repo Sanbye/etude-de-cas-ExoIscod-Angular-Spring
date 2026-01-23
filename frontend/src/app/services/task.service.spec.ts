@@ -44,6 +44,55 @@ describe('TaskService', () => {
     expect(service).toBeTruthy();
   });
 
+  it('should create a task', () => {
+    const taskData = {
+      name: 'Test Task',
+      description: 'Test Description',
+      dueDate: '2024-12-31',
+      priority: TaskPriority.HIGH
+    };
+    const projectId = 'test-project-id';
+    const mockTask: Task = { 
+      id: '1', 
+      name: taskData.name,
+      description: taskData.description,
+      dueDate: taskData.dueDate,
+      priority: taskData.priority,
+      status: TaskStatus.TODO 
+    };
+
+    service.createTask(projectId, taskData).subscribe(task => {
+      expect(task).toEqual(mockTask);
+    });
+
+    const req = httpMock.expectOne(`${environment.apiUrl}/tasks`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({
+      projectId: projectId,
+      name: taskData.name,
+      description: taskData.description,
+      dueDate: taskData.dueDate,
+      priority: taskData.priority
+    });
+    req.flush(mockTask);
+  });
+
+  it('should get tasks by project', () => {
+    const projectId = 'test-project-id';
+    const mockTasks: Task[] = [
+      { id: '1', name: 'Task 1', status: TaskStatus.TODO, priority: TaskPriority.MEDIUM },
+      { id: '2', name: 'Task 2', status: TaskStatus.IN_PROGRESS, priority: TaskPriority.HIGH }
+    ];
+
+    service.getTasksByProject(projectId).subscribe(tasks => {
+      expect(tasks).toEqual(mockTasks);
+    });
+
+    const req = httpMock.expectOne(`${environment.apiUrl}/tasks/project/${projectId}`);
+    expect(req.request.method).toBe('GET');
+    req.flush(mockTasks);
+  });
+
   it('should get all tasks', () => {
     const mockTasks: Task[] = [
       { id: '1', name: 'Task 1', description: 'Description 1', status: TaskStatus.TODO, priority: TaskPriority.MEDIUM },
@@ -75,17 +124,36 @@ describe('TaskService', () => {
   });
 
   it('should create a task', () => {
-    const newTask: Task = { name: 'New Task', description: 'New Description', status: TaskStatus.TODO, priority: TaskPriority.LOW };
-    const createdTask: Task = { id: '1', ...newTask };
+    const projectId = 'test-project-id';
+    const taskData = {
+      name: 'New Task',
+      description: 'New Description',
+      dueDate: '2024-12-31',
+      priority: TaskPriority.HIGH
+    };
+    const createdTask: Task = { 
+      id: '1', 
+      name: taskData.name,
+      description: taskData.description,
+      dueDate: taskData.dueDate,
+      priority: taskData.priority,
+      status: TaskStatus.TODO 
+    };
 
-    service.createTask(newTask).subscribe(task => {
+    service.createTask(projectId, taskData).subscribe(task => {
       expect(task).toEqual(createdTask);
     });
 
     const req = httpMock.expectOne(apiUrl);
     expect(req.request.method).toBe('POST');
     expect(req.request.headers.get('X-User-Id')).toBe(mockUser.userId);
-    expect(req.request.body).toEqual(newTask);
+    expect(req.request.body).toEqual({
+      projectId: projectId,
+      name: taskData.name,
+      description: taskData.description,
+      dueDate: taskData.dueDate,
+      priority: taskData.priority
+    });
     req.flush(createdTask);
   });
 
@@ -112,6 +180,34 @@ describe('TaskService', () => {
     expect(req.request.method).toBe('DELETE');
     expect(req.request.headers.get('X-User-Id')).toBe(mockUser.userId);
     req.flush(null);
+  });
+
+  it('should assign a task to a project member', () => {
+    const taskId = '1';
+    const projectId = 'project-1';
+    const userId = 'user-1';
+    const assignedTask: Task = { 
+      id: taskId, 
+      name: 'Assigned Task', 
+      status: TaskStatus.TODO, 
+      priority: TaskPriority.MEDIUM,
+      assignedUserId: userId,
+      projectId: projectId
+    };
+
+    service.assignTask(taskId, projectId, userId).subscribe(task => {
+      expect(task).toEqual(assignedTask);
+      expect(task.assignedUserId).toBe(userId);
+    });
+
+    const req = httpMock.expectOne(`${apiUrl}/${taskId}/assign`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.headers.get('X-User-Id')).toBe(mockUser.userId);
+    expect(req.request.body).toEqual({
+      projectId: projectId,
+      userId: userId
+    });
+    req.flush(assignedTask);
   });
 });
 
