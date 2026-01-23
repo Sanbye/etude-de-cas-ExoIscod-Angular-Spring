@@ -61,9 +61,18 @@ public class TaskController {
     }
 
     @GetMapping("/{id}/history")
-    public ResponseEntity<List<TaskHistory>> getTaskHistory(@PathVariable UUID id) {
-        List<TaskHistory> history = taskService.getTaskHistory(id);
-        return ResponseEntity.ok(history);
+    public ResponseEntity<?> getTaskHistory(@PathVariable UUID id) {
+        try {
+            UUID userId = SecurityUtil.getCurrentUserId();
+            if (userId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            
+            List<TaskHistory> history = taskService.getTaskHistory(id, userId);
+            return ResponseEntity.ok(history);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
 
     @PostMapping
@@ -82,15 +91,17 @@ public class TaskController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Task> updateTask(@PathVariable UUID id, @RequestBody Task task) {
+    public ResponseEntity<?> updateTask(@PathVariable UUID id, @RequestBody Task task) {
         try {
-            // Pour l'instant, on utilise des UUID par défaut. Dans un vrai projet, on récupérerait depuis le token JWT
-            UUID projectMemberProjectId = UUID.fromString("20000000-0000-0000-0000-000000000001"); // TODO: Récupérer depuis le token JWT
-            UUID projectMemberUserId = UUID.fromString("10000000-0000-0000-0000-000000000001"); // TODO: Récupérer depuis le token JWT
-            Task updatedTask = taskService.updateTask(id, task, projectMemberProjectId, projectMemberUserId);
+            UUID updaterId = SecurityUtil.getCurrentUserId();
+            if (updaterId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            
+            Task updatedTask = taskService.updateTask(id, task, updaterId);
             return ResponseEntity.ok(updatedTask);
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
 

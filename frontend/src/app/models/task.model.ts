@@ -36,3 +36,13 @@ export enum Role {
   MEMBER = 'MEMBER',
   OBSERVER = 'OBSERVER'
 }
+
+export interface TaskHistory {
+  id?: string;
+  taskId?: string;
+  fieldName: string;
+  oldValue?: string;
+  newValue?: string;
+  modifiedAt?: string;
+  modifiedBy?: string;
+}

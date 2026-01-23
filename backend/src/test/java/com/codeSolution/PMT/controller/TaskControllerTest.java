@@ -162,21 +162,43 @@ class TaskControllerTest {
     }
 
     @Test
-    void testGetTaskHistory() {
+    void testGetTaskHistory_Success() {
         // Given
+        UUID viewerId = UUID.randomUUID();
         TaskHistory history = new TaskHistory();
         history.setId(UUID.randomUUID());
         List<TaskHistory> histories = Arrays.asList(history);
-        when(taskService.getTaskHistory(taskId)).thenReturn(histories);
+        when(taskService.getTaskHistory(taskId, viewerId)).thenReturn(histories);
 
-        // When
-        ResponseEntity<List<TaskHistory>> response = taskController.getTaskHistory(taskId);
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(viewerId);
 
-        // Then
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
-        verify(taskService, times(1)).getTaskHistory(taskId);
+            // When
+            ResponseEntity<?> response = taskController.getTaskHistory(taskId);
+
+            // Then
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertNotNull(response.getBody());
+            @SuppressWarnings("unchecked")
+            List<TaskHistory> body = (List<TaskHistory>) response.getBody();
+            assertEquals(1, body.size());
+            verify(taskService, times(1)).getTaskHistory(taskId, viewerId);
+        }
+    }
+
+    @Test
+    void testGetTaskHistory_Unauthorized() {
+        // Given
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(null);
+
+            // When
+            ResponseEntity<?> response = taskController.getTaskHistory(taskId);
+
+            // Then
+            assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+            verify(taskService, never()).getTaskHistory(any(), any());
+        }
     }
 
     @Test
@@ -251,35 +273,108 @@ class TaskControllerTest {
     @Test
     void testUpdateTask_WhenTaskExists() {
         // Given
+        UUID updaterId = UUID.randomUUID();
         Task updatedTask = new Task();
         updatedTask.setId(taskId);
         updatedTask.setName("Updated Task");
-        when(taskService.updateTask(any(UUID.class), any(Task.class), any(UUID.class), any(UUID.class)))
+        when(taskService.updateTask(any(UUID.class), any(Task.class), any(UUID.class)))
                 .thenReturn(updatedTask);
 
-        // When
-        ResponseEntity<Task> response = taskController.updateTask(taskId, updatedTask);
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(updaterId);
 
-        // Then
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals("Updated Task", response.getBody().getName());
-        verify(taskService, times(1)).updateTask(any(UUID.class), any(Task.class), any(UUID.class), any(UUID.class));
+            // When
+            ResponseEntity<?> response = taskController.updateTask(taskId, updatedTask);
+
+            // Then
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+            assertNotNull(response.getBody());
+            assertEquals("Updated Task", ((Task) response.getBody()).getName());
+            verify(taskService, times(1)).updateTask(eq(taskId), eq(updatedTask), eq(updaterId));
+        }
     }
 
     @Test
     void testUpdateTask_WhenTaskDoesNotExist() {
         // Given
-        when(taskService.updateTask(any(UUID.class), any(Task.class), any(UUID.class), any(UUID.class)))
+        UUID updaterId = UUID.randomUUID();
+        when(taskService.updateTask(any(UUID.class), any(Task.class), any(UUID.class)))
                 .thenThrow(new RuntimeException("Task not found"));
 
-        // When
-        ResponseEntity<Task> response = taskController.updateTask(taskId, testTask);
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(updaterId);
 
-        // Then
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        assertNull(response.getBody());
-        verify(taskService, times(1)).updateTask(any(UUID.class), any(Task.class), any(UUID.class), any(UUID.class));
+            // When
+            ResponseEntity<?> response = taskController.updateTask(taskId, testTask);
+
+            // Then
+            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+            assertEquals("Task not found", response.getBody());
+            verify(taskService, times(1)).updateTask(eq(taskId), eq(testTask), eq(updaterId));
+        }
+    }
+
+    @Test
+    void testUpdateTask_Unauthorized() {
+        // Given
+        Task updatedTask = new Task();
+        updatedTask.setId(taskId);
+        updatedTask.setName("Updated Task");
+
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(null);
+
+            // When
+            ResponseEntity<?> response = taskController.updateTask(taskId, updatedTask);
+
+            // Then
+            assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+            verify(taskService, never()).updateTask(any(), any(), any());
+        }
+    }
+
+    @Test
+    void testUpdateTask_WhenServiceThrowsException() {
+        // Given
+        UUID updaterId = UUID.randomUUID();
+        Task updatedTask = new Task();
+        updatedTask.setId(taskId);
+        updatedTask.setName("Updated Task");
+
+        when(taskService.updateTask(any(UUID.class), any(Task.class), any(UUID.class)))
+                .thenThrow(new RuntimeException("You must be a member or administrator of the project to update tasks."));
+
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(updaterId);
+
+            // When
+            ResponseEntity<?> response = taskController.updateTask(taskId, updatedTask);
+
+            // Then
+            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+            assertEquals("You must be a member or administrator of the project to update tasks.", response.getBody());
+            verify(taskService, times(1)).updateTask(eq(taskId), eq(updatedTask), eq(updaterId));
+        }
+    }
+
+    @Test
+    void testGetTaskHistory_WhenServiceThrowsException() {
+        // Given
+        UUID viewerId = UUID.randomUUID();
+        when(taskService.getTaskHistory(taskId, viewerId))
+                .thenThrow(new RuntimeException("You must be a member of the project to view task history."));
+
+        try (MockedStatic<SecurityUtil> mockedSecurityUtil = mockStatic(SecurityUtil.class)) {
+            mockedSecurityUtil.when(SecurityUtil::getCurrentUserId).thenReturn(viewerId);
+
+            // When
+            ResponseEntity<?> response = taskController.getTaskHistory(taskId);
+
+            // Then
+            assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+            assertEquals("You must be a member of the project to view task history.", response.getBody());
+            verify(taskService, times(1)).getTaskHistory(taskId, viewerId);
+        }
     }
 
     @Test

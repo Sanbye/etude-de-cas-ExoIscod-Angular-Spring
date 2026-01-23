@@ -6,7 +6,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.codeSolution.PMT.dto.AssignTaskRequest;
 import com.codeSolution.PMT.dto.CreateTaskRequest;
-import com.codeSolution.PMT.dto.ProjectMemberDTO;
 import com.codeSolution.PMT.dto.TaskDTO;
 import com.codeSolution.PMT.model.ProjectMember;
 import com.codeSolution.PMT.model.Role;
@@ -182,13 +181,25 @@ public class TaskService {
         return savedTask;
     }
 
-    public Task updateTask(UUID taskId, Task updatedTask, UUID projectMemberProjectId, UUID projectMemberUserId) {
+    public Task updateTask(UUID taskId, Task updatedTask, UUID updaterId) {
         Task existingTask = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
         
+        ProjectMember taskProjectMember = existingTask.getProjectMember();
+        if (taskProjectMember == null) {
+            throw new RuntimeException("Task is not assigned to a project member");
+        }
+        
+        UUID projectId = taskProjectMember.getProjectId();
+        
+
         ProjectMember projectMember = projectMemberRepository
-                .findByProjectIdAndUserId(projectMemberProjectId, projectMemberUserId)
-                .orElseThrow(() -> new RuntimeException("ProjectMember not found"));
+                .findByProjectIdAndUserId(projectId, updaterId)
+                .orElseThrow(() -> new RuntimeException("You must be a member or administrator of the project to update tasks."));
+        
+        if (projectMember.getRole() != Role.ADMIN && projectMember.getRole() != Role.MEMBER) {
+            throw new RuntimeException("You must be a member or administrator of the project to update tasks.");
+        }
         
         // Tracker les changements
         if (!existingTask.getName().equals(updatedTask.getName())) {
@@ -231,7 +242,21 @@ public class TaskService {
         return taskRepository.save(existingTask);
     }
 
-    public List<TaskHistory> getTaskHistory(UUID taskId) {
+    public List<TaskHistory> getTaskHistory(UUID taskId, UUID userId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+        
+        ProjectMember taskProjectMember = task.getProjectMember();
+        if (taskProjectMember == null) {
+            throw new RuntimeException("Task is not assigned to a project member");
+        }
+        
+        UUID projectId = taskProjectMember.getProjectId();
+        
+        projectMemberRepository
+                .findByProjectIdAndUserId(projectId, userId)
+                .orElseThrow(() -> new RuntimeException("You must be a member of the project to view task history."));
+        
         return taskHistoryRepository.findByTaskIdOrderByModifiedAtDesc(taskId);
     }
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Task } from '../models/task.model';
+import { Task, TaskHistory } from '../models/task.model';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -47,6 +47,10 @@ export class TaskService {
       projectId: projectId,
       userId: userId
     });
+  }
+
+  getTaskHistory(taskId: string): Observable<TaskHistory[]> {
+    return this.http.get<TaskHistory[]>(`${this.apiUrl}/${taskId}/history`);
   }
 }
 

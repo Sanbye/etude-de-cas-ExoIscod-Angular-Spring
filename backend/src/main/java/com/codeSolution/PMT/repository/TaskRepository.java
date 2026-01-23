@@ -12,7 +12,7 @@ import java.util.UUID;
 
 @Repository
 public interface TaskRepository extends JpaRepository<Task, UUID> {
-    @Query("SELECT t FROM Task t WHERE t.projectMember.projectId = :projectId")
+    @Query("SELECT t FROM Task t WHERE t.projectMember.projectId = :projectId ORDER BY t.dueDate ASC NULLS LAST")
     List<Task> findByProjectId(@Param("projectId") UUID projectId);
     
     @Query("SELECT t FROM Task t WHERE t.projectMember.userId = :userId")

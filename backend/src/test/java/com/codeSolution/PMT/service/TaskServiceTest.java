@@ -169,6 +169,7 @@ class TaskServiceTest {
     @Test
     void testUpdateTask_Success() {
         // Given
+        UUID updaterId = userId;
         Task updatedTask = new Task();
         updatedTask.setName("Updated Task");
         updatedTask.setDescription("Updated Description");
@@ -176,19 +177,20 @@ class TaskServiceTest {
         updatedTask.setPriority(Task.TaskPriority.HIGH);
         updatedTask.setDueDate(LocalDate.now().plusDays(7));
 
+        testProjectMember.setRole(Role.MEMBER);
         when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
-        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, updaterId))
                 .thenReturn(Optional.of(testProjectMember));
         when(taskRepository.save(any(Task.class))).thenReturn(testTask);
         when(taskHistoryRepository.save(any(TaskHistory.class))).thenReturn(new TaskHistory());
 
         // When
-        Task result = taskService.updateTask(taskId, updatedTask, projectId, userId);
+        Task result = taskService.updateTask(taskId, updatedTask, updaterId);
 
         // Then
         assertNotNull(result);
         verify(taskRepository, times(1)).findById(taskId);
-        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, userId);
+        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, updaterId);
         verify(taskRepository, times(1)).save(any(Task.class));
         verify(taskHistoryRepository, atLeastOnce()).save(any(TaskHistory.class));
     }
@@ -196,17 +198,25 @@ class TaskServiceTest {
     @Test
     void testGetTaskHistory() {
         // Given
+        UUID viewerId = userId;
         TaskHistory history = new TaskHistory();
         List<TaskHistory> histories = Arrays.asList(history);
+        
+        testProjectMember.setRole(Role.MEMBER);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, viewerId))
+                .thenReturn(Optional.of(testProjectMember));
         when(taskHistoryRepository.findByTaskIdOrderByModifiedAtDesc(taskId)).thenReturn(histories);
 
         // When
-        List<TaskHistory> result = taskService.getTaskHistory(taskId);
+        List<TaskHistory> result = taskService.getTaskHistory(taskId, viewerId);
 
         // Then
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(history, result.get(0));
+        verify(taskRepository, times(1)).findById(taskId);
+        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, viewerId);
         verify(taskHistoryRepository, times(1)).findByTaskIdOrderByModifiedAtDesc(taskId);
     }
 
@@ -287,6 +297,147 @@ class TaskServiceTest {
         assertEquals("You must be a member or administrator of the project to create tasks.", exception.getMessage());
         verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, creatorId);
         verify(taskRepository, never()).save(any(Task.class));
+    }
+
+    @Test
+    void testUpdateTask_WhenUserNotMember() {
+        // Given
+        UUID updaterId = UUID.randomUUID();
+        Task updatedTask = new Task();
+        updatedTask.setName("Updated Task");
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, updaterId))
+                .thenReturn(Optional.empty());
+
+        // When & Then
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            taskService.updateTask(taskId, updatedTask, updaterId);
+        });
+
+        assertEquals("You must be a member or administrator of the project to update tasks.", exception.getMessage());
+        verify(taskRepository, times(1)).findById(taskId);
+        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, updaterId);
+        verify(taskRepository, never()).save(any(Task.class));
+    }
+
+    @Test
+    void testUpdateTask_WhenProjectMemberIsObserver() {
+        // Given
+        UUID updaterId = userId;
+        Task updatedTask = new Task();
+        updatedTask.setName("Updated Task");
+
+        testProjectMember.setRole(Role.OBSERVER);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, updaterId))
+                .thenReturn(Optional.of(testProjectMember));
+
+        // When & Then
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            taskService.updateTask(taskId, updatedTask, updaterId);
+        });
+
+        assertEquals("You must be a member or administrator of the project to update tasks.", exception.getMessage());
+        verify(taskRepository, times(1)).findById(taskId);
+        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, updaterId);
+        verify(taskRepository, never()).save(any(Task.class));
+    }
+
+    @Test
+    void testUpdateTask_WithEndDate() {
+        // Given
+        UUID updaterId = userId;
+        Task updatedTask = new Task();
+        updatedTask.setName(testTask.getName());
+        updatedTask.setDescription(testTask.getDescription());
+        updatedTask.setStatus(testTask.getStatus());
+        updatedTask.setPriority(testTask.getPriority());
+        updatedTask.setDueDate(testTask.getDueDate());
+        updatedTask.setEndDate(LocalDate.now());
+
+        testProjectMember.setRole(Role.MEMBER);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, updaterId))
+                .thenReturn(Optional.of(testProjectMember));
+        when(taskRepository.save(any(Task.class))).thenReturn(testTask);
+        when(taskHistoryRepository.save(any(TaskHistory.class))).thenReturn(new TaskHistory());
+
+        // When
+        Task result = taskService.updateTask(taskId, updatedTask, updaterId);
+
+        // Then
+        assertNotNull(result);
+        verify(taskRepository, times(1)).findById(taskId);
+        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, updaterId);
+        verify(taskRepository, times(1)).save(any(Task.class));
+        verify(taskHistoryRepository, atLeastOnce()).save(any(TaskHistory.class));
+    }
+
+    @Test
+    void testUpdateTask_WhenTaskNotAssigned() {
+        // Given
+        UUID updaterId = userId;
+        Task taskWithoutMember = new Task();
+        taskWithoutMember.setId(taskId);
+        taskWithoutMember.setName("Task without member");
+        taskWithoutMember.setProjectMember(null);
+
+        Task updatedTask = new Task();
+        updatedTask.setName("Updated Task");
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(taskWithoutMember));
+
+        // When & Then
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            taskService.updateTask(taskId, updatedTask, updaterId);
+        });
+
+        assertEquals("Task is not assigned to a project member", exception.getMessage());
+        verify(taskRepository, times(1)).findById(taskId);
+        verify(projectMemberRepository, never()).findByProjectIdAndUserId(any(), any());
+        verify(taskRepository, never()).save(any(Task.class));
+    }
+
+    @Test
+    void testGetTaskHistory_WhenUserNotMember() {
+        // Given
+        UUID viewerId = UUID.randomUUID();
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, viewerId))
+                .thenReturn(Optional.empty());
+
+        // When & Then
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            taskService.getTaskHistory(taskId, viewerId);
+        });
+
+        assertEquals("You must be a member of the project to view task history.", exception.getMessage());
+        verify(taskRepository, times(1)).findById(taskId);
+        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, viewerId);
+        verify(taskHistoryRepository, never()).findByTaskIdOrderByModifiedAtDesc(any());
+    }
+
+    @Test
+    void testGetTaskHistory_WhenTaskNotAssigned() {
+        // Given
+        UUID viewerId = userId;
+        Task taskWithoutMember = new Task();
+        taskWithoutMember.setId(taskId);
+        taskWithoutMember.setProjectMember(null);
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(taskWithoutMember));
+
+        // When & Then
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+            taskService.getTaskHistory(taskId, viewerId);
+        });
+
+        assertEquals("Task is not assigned to a project member", exception.getMessage());
+        verify(taskRepository, times(1)).findById(taskId);
+        verify(projectMemberRepository, never()).findByProjectIdAndUserId(any(), any());
+        verify(taskHistoryRepository, never()).findByTaskIdOrderByModifiedAtDesc(any());
     }
 }
 
