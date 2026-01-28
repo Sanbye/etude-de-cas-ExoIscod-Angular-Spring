@@ -6,10 +6,19 @@ Application web de gestion de projets développée avec Angular (frontend) et Sp
 
 ## Architecture
 
-- **Backend**: Spring Boot 3.2.0 avec Java 17
-- **Frontend**: Angular 17
-- **Base de données**: PostgreSQL
-- **Containerisation**: Docker avec images disponibles sur DockerHub
+- **Backend**: Spring Boot 3.2.0 (Java 17), API REST
+- **Sécurité**: Spring Security
+- **Frontend**: Angular 17 
+- **Base de données**: PostgreSQL (scripts SQL fournis)
+- **Containerisation**: Docker (backend) + Nginx (frontend)
+- **CI/CD**: GitHub Actions (tests + couverture + build/push Docker)
+
+## Technologies et tests
+
+- **Backend**: Spring Boot, Spring Data JPA, Spring Web, Spring Security, Lombok, BCrypt
+- **Frontend**: Angular, RxJS, TypeScript
+- **Tests backend**: JUnit 5, Mockito, Spring Boot Test, H2 (tests), JaCoCo (couverture)
+- **Tests frontend**: Jasmine, Karma, ChromeHeadless, rapports de couverture
 
 ## Structure du projet
 
@@ -31,6 +40,7 @@ Application web de gestion de projets développée avec Angular (frontend) et Sp
 │   │   │   │       ├── service/        # Services métier
 │   │   │   │       ├── controller/     # Contrôleurs REST
 │   │   │   │       ├── config/         # Configurations
+│   │   │   │       ├── util/           # Utilitaires (ex: SecurityUtil)
 │   │   │   │       └── dto/            # Data Transfer Objects
 │   │   │   └── resources/
 │   │   │       └── application.properties
@@ -58,6 +68,7 @@ Application web de gestion de projets développée avec Angular (frontend) et Sp
 │   │   └── styles.css
 │   ├── Dockerfile                      # Image Docker pour le frontend
 │   ├── .dockerignore                  # Fichiers exclus du build Docker
+│   ├── scripts/                        # Scripts utilitaires (CI)
 │   └── package.json
 └── database/                          # Scripts SQL
     ├── create_database_utf8.sql        # Script pour créer la base avec encodage UTF-8
@@ -80,8 +91,8 @@ Application web de gestion de projets développée avec Angular (frontend) et Sp
 
 ### Task (Tâche)
 - Titre, description
-- Statut (TODO, IN_PROGRESS, DONE, CANCELLED)
-- Priorité (LOW, MEDIUM, HIGH, URGENT)
+- Statut (TODO, IN_PROGRESS, DONE)
+- Priorité (LOW, MEDIUM, HIGH)
 - Projet associé
 - Utilisateur assigné
 
@@ -386,14 +397,24 @@ Le projet **"Projet de Test US"** contient :
 ### Projects
 - `GET /api/projects` - Liste tous les projets
 - `GET /api/projects/{id}` - Détails d'un projet
+- `GET /api/projects/member/{memberId}` - Projets d'un membre
+- `GET /api/projects/{id}/members` - Membres d'un projet
 - `POST /api/projects` - Créer un projet
+- `POST /api/projects/{projectId}/invite` - Inviter un membre par email
 - `PUT /api/projects/{id}` - Mettre à jour un projet
+- `PUT /api/projects/{projectId}/members/{userId}/role` - Modifier le rôle d'un membre
+- `DELETE /api/projects/{projectId}/members/{userId}` - Retirer un membre
 - `DELETE /api/projects/{id}` - Supprimer un projet
 
 ### Tasks
 - `GET /api/tasks` - Liste toutes les tâches
 - `GET /api/tasks/{id}` - Détails d'une tâche
+- `GET /api/tasks/project/{projectId}` - Tâches par projet (DTO)
+- `GET /api/tasks/project/{projectId}/status/{status}` - Tâches par projet et statut
+- `GET /api/tasks/assigned/{userId}` - Tâches assignées à un utilisateur
+- `GET /api/tasks/{id}/history` - Historique d'une tâche
 - `POST /api/tasks` - Créer une tâche
+- `POST /api/tasks/{taskId}/assign` - Assigner une tâche
 - `PUT /api/tasks/{id}` - Mettre à jour une tâche
 - `DELETE /api/tasks/{id}` - Supprimer une tâche
 
@@ -411,13 +432,13 @@ Le workflow CI/CD (`.github/workflows/ci.yml`) effectue les actions suivantes :
 
 1. **Tests Backend** : Exécute les tests unitaires et d'intégration avec Maven
    - Utilise Java 17
-   - Exécute `./mvnw test` dans le dossier `backend`
-   - Génère un rapport de couverture de code
+   - Exécute `./mvnw clean test verify` dans le dossier `backend`
+   - Génère un rapport de couverture de code (JaCoCo) et vérifie les seuils
 
 2. **Tests Frontend** : Exécute les tests unitaires Angular
    - Utilise Node.js 18
-   - Exécute `npm test` avec ChromeHeadless dans le dossier `frontend`
-   - Génère un rapport de couverture de code
+   - Exécute `npm run test:ci` avec ChromeHeadless dans le dossier `frontend`
+   - Génère un rapport de couverture de code et vérifie les seuils
 
 3. **Build Docker Images** (uniquement sur push vers `main`) :
    - Construit les images Docker pour le backend et le frontend
@@ -452,6 +473,10 @@ Les tests backend utilisent :
   - `ProjectServiceTest.java` - Tests du service projet
   - `TaskServiceTest.java` - Tests du service tâche
   - `AuthServiceTest.java` - Tests du service d'authentification
+  - `EmailServiceTest.java` - Tests du service email
+
+- **Tests unitaires des utilitaires** : `backend/src/test/java/com/codeSolution/PMT/util/`
+  - `SecurityUtilTest.java` - Tests des helpers de sécurité
 
 - **Tests d'intégration des repositories** : `backend/src/test/java/com/codeSolution/PMT/repository/`
   - `UserRepositoryTest.java` - Tests du repository utilisateur
@@ -507,8 +532,8 @@ cd frontend
 # Exécuter les tests en mode watch (développement)
 npm test
 
-# Exécuter les tests une fois (CI)
-npm test -- --watch=false --browsers=ChromeHeadless
+# Exécuter les tests une fois (CI) avec vérification des seuils
+npm run test:ci
 
 # Exécuter les tests avec couverture de code
 npm run test:coverage
@@ -541,7 +566,7 @@ cd frontend
 npm run test:coverage
 ```
 
-Le rapport sera généré dans `frontend/coverage/index.html`
+Le rapport sera généré dans `frontend/coverage/project-management-frontend/index.html`
 
 ## Développement
 
