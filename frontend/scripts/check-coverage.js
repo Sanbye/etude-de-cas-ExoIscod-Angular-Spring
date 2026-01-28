@@ -1,22 +1,47 @@
 const fs = require('fs');
 const path = require('path');
 
-const SUMMARY_PATH = path.join(
-  __dirname,
-  '..',
-  'coverage',
-  'project-management-frontend',
-  'coverage-summary.json'
-);
-
 const MIN_COVERAGE = 60;
 
-function readCoverageSummary() {
-  if (!fs.existsSync(SUMMARY_PATH)) {
-    throw new Error(`Coverage summary not found at ${SUMMARY_PATH}`);
+function findCoverageSummaryPath() {
+  const coverageRoot = path.join(__dirname, '..', 'coverage');
+  const candidates = [
+    path.join(coverageRoot, 'project-management-frontend', 'coverage-summary.json'),
+    path.join(coverageRoot, 'coverage-summary.json')
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
   }
 
-  const raw = fs.readFileSync(SUMMARY_PATH, 'utf8');
+  if (fs.existsSync(coverageRoot)) {
+    const stack = [coverageRoot];
+    while (stack.length > 0) {
+      const current = stack.pop();
+      const entries = fs.readdirSync(current, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(current, entry.name);
+        if (entry.isDirectory()) {
+          stack.push(fullPath);
+        } else if (entry.isFile() && entry.name === 'coverage-summary.json') {
+          return fullPath;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function readCoverageSummary() {
+  const summaryPath = findCoverageSummaryPath();
+  if (!summaryPath) {
+    throw new Error('Coverage summary not found under frontend/coverage');
+  }
+
+  const raw = fs.readFileSync(summaryPath, 'utf8');
   return JSON.parse(raw);
 }
 
