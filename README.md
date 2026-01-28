@@ -235,13 +235,16 @@ docker run -d --name pmt-postgres --network pmt-network -e POSTGRES_DB=project_m
 **Sur Linux/Mac (bash)** :
 ```bash
 docker exec -i pmt-postgres psql -U postgres -d project_management < database/schema.sql
+```
+```bash
 docker exec -i pmt-postgres psql -U postgres -d project_management < database/data.sql
 ```
 
 **Sur Windows (PowerShell)** :
 ```powershell
-
 Get-Content -Raw -Encoding UTF8 database/schema.sql | docker exec -i pmt-postgres psql -U postgres -d project_management
+```
+```powershell
 Get-Content -Raw -Encoding UTF8 database/data.sql | docker exec -i pmt-postgres psql -U postgres -d project_management
 ```
 
@@ -292,15 +295,7 @@ Si vous préférez construire les images localement :
 
 1. **Build l'image backend** :
 
-**Sur Linux/Mac (bash)** :
 ```bash
-cd backend
-docker build -t pmt-backend:latest .
-cd ..
-```
-
-**Sur Windows (PowerShell)** :
-```powershell
 cd backend
 docker build -t pmt-backend:latest .
 cd ..
@@ -308,15 +303,7 @@ cd ..
 
 2. **Build l'image frontend** :
 
-**Sur Linux/Mac (bash)** :
 ```bash
-cd frontend
-docker build -t pmt-frontend:latest .
-cd ..
-```
-
-**Sur Windows (PowerShell)** :
-```powershell
 cd frontend
 docker build -t pmt-frontend:latest .
 cd ..
