@@ -234,18 +234,22 @@ docker run -d --name pmt-postgres --network pmt-network -e POSTGRES_DB=project_m
 
 **Sur Linux/Mac (bash)** :
 ```bash
-docker exec -i pmt-postgres psql -U postgres -d project_management < database/schema.sql
+docker cp database/schema.sql pmt-postgres:/schema.sql
+docker exec -i pmt-postgres psql -U postgres -d project_management -f /schema.sql
 ```
 ```bash
-docker exec -i pmt-postgres psql -U postgres -d project_management < database/data.sql
+docker cp database/data.sql pmt-postgres:/data.sql
+docker exec -i pmt-postgres psql -U postgres -d project_management -f /data.sql
 ```
 
 **Sur Windows (PowerShell)** :
 ```powershell
-Get-Content -Raw -Encoding UTF8 database/schema.sql | docker exec -i pmt-postgres psql -U postgres -d project_management
+docker cp database/schema.sql pmt-postgres:/schema.sql
+docker exec -i pmt-postgres psql -U postgres -d project_management -f /schema.sql
 ```
 ```powershell
-Get-Content -Raw -Encoding UTF8 database/data.sql | docker exec -i pmt-postgres psql -U postgres -d project_management
+docker cp database/data.sql pmt-postgres:/data.sql
+docker exec -i pmt-postgres psql -U postgres -d project_management -f /data.sql
 ```
 
 5. **Lancer le backend** :
