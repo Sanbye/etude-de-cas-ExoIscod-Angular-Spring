@@ -94,17 +94,24 @@ Application web de gestion de projets développée avec Angular (frontend) et Sp
 - **Node.js 18+** et npm
 - **PostgreSQL 18+**
 
-### Pour Docker
+### Pour la conteneurisation
 
 - **Docker**
 
 ## Installation et démarrage
+
+Clonez le dépôt du projet avec la commande suivante :
+```bash
+git clone https://github.com/Sanbye/etude-de-cas-ExoIscod-Angular-Spring.git
+```
 
 ### Option 1 : Développement local
 
 #### Base de données
 
 1. **Créer la base de données PostgreSQL avec UTF-8** :
+
+> **Important :** Sous Windows, assurez-vous que le chemin d'accès à PostgreSQL est correctement configuré dans les variables d'environnement.
 
 **Option A : Utiliser le script (recommandé)** :
 ```bash
@@ -180,7 +187,7 @@ npm install
 npm start
 ```
 
-Le frontend sera accessible sur `http://localhost:4200`
+Le frontend sera accessible sur `http://localhost:4200` (**port 4200 obligatoire**).
 
 ### Option 2 : Docker
 
@@ -233,8 +240,9 @@ docker exec -i pmt-postgres psql -U postgres -d project_management < database/da
 
 **Sur Windows (PowerShell)** :
 ```powershell
-Get-Content database/schema.sql | docker exec -i pmt-postgres psql -U postgres -d project_management
-Get-Content database/data.sql | docker exec -i pmt-postgres psql -U postgres -d project_management
+
+Get-Content -Raw -Encoding UTF8 database/schema.sql | docker exec -i pmt-postgres psql -U postgres -d project_management
+Get-Content -Raw -Encoding UTF8 database/data.sql | docker exec -i pmt-postgres psql -U postgres -d project_management
 ```
 
 5. **Lancer le backend** :
@@ -247,6 +255,7 @@ docker run -d \
   -e SPRING_DATASOURCE_URL=jdbc:postgresql://pmt-postgres:5432/project_management \
   -e SPRING_DATASOURCE_USERNAME=postgres \
   -e SPRING_DATASOURCE_PASSWORD=postgres \
+  -e JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8" \
   -e SERVER_PORT=3000 \
   -p 3000:3000 \
   gossandev/pmt-backend:latest
@@ -254,7 +263,7 @@ docker run -d \
 
 **Sur Windows (PowerShell)** :
 ```powershell
-docker run -d --name pmt-backend --network pmt-network -e SPRING_DATASOURCE_URL=jdbc:postgresql://pmt-postgres:5432/project_management -e SPRING_DATASOURCE_USERNAME=postgres -e SPRING_DATASOURCE_PASSWORD=postgres -e SERVER_PORT=3000 -p 3000:3000 gossandev/pmt-backend:latest
+docker run -d --name pmt-backend --network pmt-network -e SPRING_DATASOURCE_URL=jdbc:postgresql://pmt-postgres:5432/project_management -e SPRING_DATASOURCE_USERNAME=postgres -e SPRING_DATASOURCE_PASSWORD=postgres -e JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8" -e SERVER_PORT=3000 -p 3000:3000 gossandev/pmt-backend:latest
 ```
 
 Le backend Docker sera accessible sur `http://localhost:3000`
@@ -275,7 +284,7 @@ docker run -d \
 docker run -d --name pmt-frontend --network pmt-network -p 4200:8080 gossandev/pmt-frontend:latest
 ```
 
-Le frontend Docker sera accessible sur `http://localhost:4200`
+Le frontend Docker sera accessible sur `http://localhost:4200` (**port 4200 obligatoire**).
 
 #### Méthode 2 : Build local des images Docker
 
