@@ -14,8 +14,8 @@ DELETE FROM users;
 -- Hash BCrypt pour le mot de passe "123456" : $2a$12$eSKAYweKPUtN4lS4xyYKJ.rgToxyQm2VuzBJudLEWYhWGe3YD072u
 INSERT INTO users (id, user_name, email, password) VALUES
 -- Utilisateurs principaux pour tester les US
-('10000000-0000-0000-0000-000000000001', 'admin', 'admin@admin.gmail.com', '$2a$12$eSKAYweKPUtN4lS4xyYKJ.rgToxyQm2VuzBJudLEWYhWGe3YD072u'),
-('10000000-0000-0000-0000-000000000002', 'member', 'member@member.gmail.com', '$2a$12$eSKAYweKPUtN4lS4xyYKJ.rgToxyQm2VuzBJudLEWYhWGe3YD072u'),
+('10000000-0000-0000-0000-000000000001', 'admin', 'admin@gmail.com', '$2a$12$eSKAYweKPUtN4lS4xyYKJ.rgToxyQm2VuzBJudLEWYhWGe3YD072u'),
+('10000000-0000-0000-0000-000000000002', 'member', 'member@gmail.com', '$2a$12$eSKAYweKPUtN4lS4xyYKJ.rgToxyQm2VuzBJudLEWYhWGe3YD072u'),
 -- Utilisateurs supplémentaires pour les tests
 ('10000000-0000-0000-0000-000000000003', 'john.doe', 'john.doe@example.com', '$2a$12$eSKAYweKPUtN4lS4xyYKJ.rgToxyQm2VuzBJudLEWYhWGe3YD072u'),
 ('10000000-0000-0000-0000-000000000004', 'jane.smith', 'jane.smith@example.com', '$2a$12$eSKAYweKPUtN4lS4xyYKJ.rgToxyQm2VuzBJudLEWYhWGe3YD072u'),

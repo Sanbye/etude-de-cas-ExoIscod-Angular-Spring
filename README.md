@@ -333,7 +333,7 @@ Pour faciliter les tests de l'application, des comptes utilisateurs sont pré-co
 Ces comptes sont liés au projet "Projet de Test US" et permettent de tester toutes les fonctionnalités :
 
 #### Compte Administrateur
-- **Email** : `admin@admin.gmail.com`
+- **Email** : `admin@gmail.com`
 - **Nom d'utilisateur** : `admin`
 - **Mot de passe** : `123456`
 - **Rôle dans le projet "Projet de Test US"** : `ADMIN`
@@ -345,7 +345,7 @@ Ces comptes sont liés au projet "Projet de Test US" et permettent de tester tou
   - ✅ Assigner des tâches à des membres
 
 #### Compte Membre
-- **Email** : `member@member.gmail.com`
+- **Email** : `member@gmail.com`
 - **Nom d'utilisateur** : `member`
 - **Mot de passe** : `123456`
 - **Rôle dans le projet "Projet de Test US"** : `MEMBER`
@@ -367,7 +367,7 @@ Le projet **"Projet de Test US"** contient :
 
 ### Scénarios de test recommandés
 
-1. **Test avec le compte ADMIN** (`admin@admin.gmail.com` / `123456`) :
+1. **Test avec le compte ADMIN** (`admin@gmail.com` / `123456`) :
    - Se connecter
    - Voir le projet "Projet de Test US"
    - Cliquer sur le projet pour voir les détails
@@ -376,7 +376,7 @@ Le projet **"Projet de Test US"** contient :
    - Créer une nouvelle tâche
    - Aller dans l'onglet "Tâches" et assigner une tâche à un membre
 
-2. **Test avec le compte MEMBER** (`member@member.gmail.com` / `123456`) :
+2. **Test avec le compte MEMBER** (`member@gmail.com` / `123456`) :
    - Se connecter
    - Voir le projet "Projet de Test US"
    - Cliquer sur le projet pour voir les détails
