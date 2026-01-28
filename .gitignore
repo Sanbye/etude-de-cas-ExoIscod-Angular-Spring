@@ -10,3 +10,6 @@ frontend/.angular/
 # IDE
 .idea/
 .vscode/
+
+# Coverage
+coverage
