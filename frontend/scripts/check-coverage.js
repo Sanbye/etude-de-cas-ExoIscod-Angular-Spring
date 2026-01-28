@@ -3,11 +3,11 @@ const path = require('path');
 
 const MIN_COVERAGE = 60;
 
-function findCoverageSummaryPath() {
+function findCoverageIndexPath() {
   const coverageRoot = path.join(__dirname, '..', 'coverage');
   const candidates = [
-    path.join(coverageRoot, 'project-management-frontend', 'coverage-summary.json'),
-    path.join(coverageRoot, 'coverage-summary.json')
+    path.join(coverageRoot, 'project-management-frontend', 'index.html'),
+    path.join(coverageRoot, 'index.html')
   ];
 
   for (const candidate of candidates) {
@@ -25,8 +25,11 @@ function findCoverageSummaryPath() {
         const fullPath = path.join(current, entry.name);
         if (entry.isDirectory()) {
           stack.push(fullPath);
-        } else if (entry.isFile() && entry.name === 'coverage-summary.json') {
-          return fullPath;
+        } else if (entry.isFile() && entry.name === 'index.html') {
+          const content = fs.readFileSync(fullPath, 'utf8');
+          if (content.includes('<h1>All files</h1>')) {
+            return fullPath;
+          }
         }
       }
     }
@@ -35,23 +38,42 @@ function findCoverageSummaryPath() {
   return null;
 }
 
-function readCoverageSummary() {
-  const summaryPath = findCoverageSummaryPath();
-  if (!summaryPath) {
-    throw new Error('Coverage summary not found under frontend/coverage');
+function parseCoverageFromIndexHtml(indexHtmlPath) {
+  const content = fs.readFileSync(indexHtmlPath, 'utf8');
+  const metrics = ['Statements', 'Branches', 'Functions', 'Lines'];
+  const result = {};
+
+  for (const metric of metrics) {
+    const regex = new RegExp(
+      `<span class="strong">\\s*([0-9]+(?:\\.[0-9]+)?)%\\s*</span>\\s*` +
+      `<span class="quiet">${metric}</span>`,
+      'i'
+    );
+    const match = content.match(regex);
+    if (match) {
+      result[metric.toLowerCase()] = parseFloat(match[1]);
+    }
   }
 
-  const raw = fs.readFileSync(summaryPath, 'utf8');
-  return JSON.parse(raw);
+  return result;
+}
+
+function readCoverageSummary() {
+  const indexPath = findCoverageIndexPath();
+  if (!indexPath) {
+    throw new Error('Coverage report not found under frontend/coverage');
+  }
+
+  return { total: parseCoverageFromIndexHtml(indexPath) };
 }
 
 function ensureThresholds(summary) {
   const total = summary.total;
   const checks = [
-    { name: 'statements', pct: total.statements.pct },
-    { name: 'branches', pct: total.branches.pct },
-    { name: 'functions', pct: total.functions.pct },
-    { name: 'lines', pct: total.lines.pct }
+    { name: 'statements', pct: total.statements },
+    { name: 'branches', pct: total.branches },
+    { name: 'functions', pct: total.functions },
+    { name: 'lines', pct: total.lines }
   ];
 
   const failures = checks.filter(check => check.pct < MIN_COVERAGE);
