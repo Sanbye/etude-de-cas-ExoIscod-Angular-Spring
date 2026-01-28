@@ -234,22 +234,11 @@ docker run -d --name pmt-postgres --network pmt-network -e POSTGRES_DB=project_m
 
 4. **Initialiser la base de données** :
 
-**Sur Linux/Mac (bash)** :
 ```bash
 docker cp database/schema.sql pmt-postgres:/schema.sql
 docker exec -i pmt-postgres psql -U postgres -d project_management -f /schema.sql
 ```
 ```bash
-docker cp database/data.sql pmt-postgres:/data.sql
-docker exec -i pmt-postgres psql -U postgres -d project_management -f /data.sql
-```
-
-**Sur Windows (PowerShell)** :
-```powershell
-docker cp database/schema.sql pmt-postgres:/schema.sql
-docker exec -i pmt-postgres psql -U postgres -d project_management -f /schema.sql
-```
-```powershell
 docker cp database/data.sql pmt-postgres:/data.sql
 docker exec -i pmt-postgres psql -U postgres -d project_management -f /data.sql
 ```
