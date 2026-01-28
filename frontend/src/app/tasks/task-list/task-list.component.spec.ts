@@ -302,5 +302,142 @@ describe('TaskListComponent', () => {
     
     expect(component.filteredTaskGroups.length).toBeGreaterThanOrEqual(0);
   }));
+
+  it('should initialize edit form when edit tab is activated', () => {
+    component.taskGroups = [{
+      project: mockProjects[0],
+      tasks: [{
+        ...mockTasks[0],
+        dueDate: '2024-01-02T00:00:00Z',
+        endDate: '2024-02-03T00:00:00Z'
+      }],
+      members: mockMembers
+    }];
+
+    component.setActiveTab('1', 'edit');
+
+    expect(component.activeTab['1']).toBe('edit');
+    expect(component.editForms['1']).toBeTruthy();
+    expect(component.editForms['1'].value.dueDate).toBe('2024-01-02');
+    expect(component.editForms['1'].value.endDate).toBe('2024-02-03');
+  });
+
+  it('should resolve assigned member name correctly', () => {
+    const group = {
+      project: mockProjects[0],
+      tasks: [mockTasks[0]],
+      members: [
+        { userId: 'user1', userName: 'User 1', userEmail: 'user1@example.com', role: 'ADMIN' }
+      ]
+    };
+
+    expect(component.getAssignedMemberName({ ...mockTasks[0], assignedUserId: undefined }, group as any))
+      .toBe('Non assigné');
+    expect(component.getAssignedMemberName({ ...mockTasks[0], assignedUserId: 'missing' }, group as any))
+      .toBe('Membre inconnu');
+    expect(component.getAssignedMemberName({ ...mockTasks[0], assignedUserId: 'user1' }, group as any))
+      .toBe('User 1');
+  });
+
+  it('should evaluate assign/edit permissions based on role', () => {
+    component.currentUser = mockUser;
+
+    const adminGroup = { project: mockProjects[0], tasks: [], members: [{ userId: 'user1', role: 'ADMIN' }] };
+    const observerGroup = { project: mockProjects[0], tasks: [], members: [{ userId: 'user1', role: 'OBSERVER' }] };
+    const emptyGroup = { project: mockProjects[0], tasks: [], members: [] };
+
+    expect(component.canAssignTask(adminGroup as any)).toBe(true);
+    expect(component.canEditTask(adminGroup as any)).toBe(true);
+    expect(component.canAssignTask(observerGroup as any)).toBe(false);
+    expect(component.canAssignTask(emptyGroup as any)).toBe(false);
+  });
+
+  it('should handle assignment error', fakeAsync(() => {
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    taskService.getTasksByProject.and.returnValue(of(mockTasks));
+    projectService.getProjectMembers.and.returnValue(of(mockMembers));
+    taskService.assignTask.and.returnValue(throwError(() => ({ error: 'Assignment failed' })));
+
+    fixture.detectChanges();
+    tick();
+
+    component.assignmentValues['1'] = 'user1';
+    component.assignTask(mockTasks[0], '1');
+    tick();
+
+    expect(component.assignmentError['1']).toBe('Assignment failed');
+    expect(component.assigning['1']).toBe(false);
+  }));
+
+  it('should handle task history errors', fakeAsync(() => {
+    taskService.getTaskHistory.and.returnValue(throwError(() => ({ status: 403 })));
+    component.loadTaskHistory('1');
+    tick();
+    expect(component.historyError['1']).toContain('permissions');
+
+    taskService.getTaskHistory.and.returnValue(throwError(() => ({ status: 404 })));
+    component.loadTaskHistory('2', true);
+    tick();
+    expect(component.historyError['2']).toContain('introuvable');
+
+    taskService.getTaskHistory.and.returnValue(throwError(() => ({ error: 'Server error' })));
+    component.loadTaskHistory('3', true);
+    tick();
+    expect(component.historyError['3']).toBe('Server error');
+  }));
+
+  it('should reuse cached task history when not forced', () => {
+    component.taskHistory['1'] = [];
+    component.loadTaskHistory('1');
+    expect(taskService.getTaskHistory).not.toHaveBeenCalled();
+  });
+
+  it('should call callback even if reloadTasksForProject fails', () => {
+    component.taskGroups = [{
+      project: mockProjects[0],
+      tasks: mockTasks,
+      members: mockMembers
+    }];
+    taskService.getTasksByProject.and.returnValue(throwError(() => new Error('Fail')));
+
+    const callback = jasmine.createSpy('callback');
+    component.reloadTasksForProject('1', callback);
+    expect(callback).toHaveBeenCalled();
+  });
+
+  it('should skip assignment when no user selected', () => {
+    component.assignmentValues['1'] = '';
+    component.assignTask(mockTasks[0], '1');
+    expect(taskService.assignTask).not.toHaveBeenCalled();
+  });
+
+  it('should not update task when form is invalid', () => {
+    component.taskGroups = [{
+      project: mockProjects[0],
+      tasks: [mockTasks[0]],
+      members: mockMembers
+    }];
+    component.setActiveTab('1', 'edit');
+    component.editForms['1'].setErrors({ invalid: true });
+
+    component.updateTask(mockTasks[0], '1');
+    expect(taskService.updateTask).not.toHaveBeenCalled();
+  });
+
+  it('should handle 403 errors when loading tasks and members', fakeAsync(() => {
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    taskService.getTasksByProject.and.returnValue(throwError(() => ({ status: 403 })));
+    projectService.getProjectMembers.and.returnValue(throwError(() => ({ status: 403 })));
+
+    fixture.detectChanges();
+    tick();
+
+    expect(component.error).toBeNull();
+    expect(component.taskGroups.length).toBe(0);
+  }));
+
+  it('should return default field name when unknown', () => {
+    expect(component.getFieldDisplayName('unknownField')).toBe('unknownField');
+  });
 });
 

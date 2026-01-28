@@ -1,15 +1,16 @@
 package com.codeSolution.PMT.service;
 
+import com.codeSolution.PMT.dto.AssignTaskRequest;
 import com.codeSolution.PMT.dto.CreateTaskRequest;
-import com.codeSolution.PMT.model.Notification;
 import com.codeSolution.PMT.model.ProjectMember;
 import com.codeSolution.PMT.model.Role;
 import com.codeSolution.PMT.model.Task;
 import com.codeSolution.PMT.model.TaskHistory;
+import com.codeSolution.PMT.model.User;
+import com.codeSolution.PMT.model.Project;
 import com.codeSolution.PMT.repository.ProjectMemberRepository;
 import com.codeSolution.PMT.repository.TaskHistoryRepository;
 import com.codeSolution.PMT.repository.TaskRepository;
-import com.codeSolution.PMT.service.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -63,9 +64,19 @@ class TaskServiceTest {
         projectId = UUID.randomUUID();
         userId = UUID.randomUUID();
 
+        User testUser = new User();
+        testUser.setId(userId);
+        testUser.setEmail("test@example.com");
+
+        Project testProject = new Project();
+        testProject.setId(projectId);
+        testProject.setName("Test Project");
+
         testProjectMember = new ProjectMember();
         testProjectMember.setProjectId(projectId);
         testProjectMember.setUserId(userId);
+        testProjectMember.setUser(testUser);
+        testProjectMember.setProject(testProject);
 
         testTask = new Task();
         testTask.setId(taskId);
@@ -516,6 +527,157 @@ class TaskServiceTest {
         verify(taskRepository, times(1)).findById(taskId);
         verify(projectMemberRepository, never()).findByProjectIdAndUserId(any(), any());
         verify(taskHistoryRepository, never()).findByTaskIdOrderByModifiedAtDesc(any());
+    }
+
+    @Test
+    void testAssignTask_Success() {
+        UUID assignedById = userId;
+        AssignTaskRequest request = new AssignTaskRequest();
+        request.setProjectId(projectId);
+        request.setUserId(userId);
+
+        User assigneeUser = new User();
+        assigneeUser.setId(userId);
+        assigneeUser.setEmail("assignee@example.com");
+
+        Project project = new Project();
+        project.setId(projectId);
+        project.setName("Project Name");
+
+        ProjectMember assignedByMember = new ProjectMember();
+        assignedByMember.setProjectId(projectId);
+        assignedByMember.setUserId(assignedById);
+        assignedByMember.setRole(Role.ADMIN);
+
+        ProjectMember assigneeMember = new ProjectMember();
+        assigneeMember.setProjectId(projectId);
+        assigneeMember.setUserId(userId);
+        assigneeMember.setRole(Role.MEMBER);
+        assigneeMember.setUser(assigneeUser);
+        assigneeMember.setProject(project);
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, assignedById))
+                .thenReturn(Optional.of(assignedByMember));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.of(assigneeMember));
+        when(taskRepository.save(any(Task.class))).thenReturn(testTask);
+        when(taskHistoryRepository.save(any(TaskHistory.class))).thenReturn(new TaskHistory());
+
+        Task result = taskService.assignTask(taskId, request, assignedById);
+
+        assertNotNull(result);
+        verify(notificationService, times(1)).createTaskAssignmentNotification(any(ProjectMember.class), any(Task.class));
+        verify(emailService, times(1)).sendTaskAssignmentNotification(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void testAssignTask_WhenAssignedByNotMember() {
+        AssignTaskRequest request = new AssignTaskRequest();
+        request.setProjectId(projectId);
+        request.setUserId(userId);
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.empty());
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () ->
+                taskService.assignTask(taskId, request, userId));
+
+        assertEquals("You must be a member or administrator of the project to assign tasks.", exception.getMessage());
+    }
+
+    @Test
+    void testAssignTask_WhenAssignedByObserver() {
+        AssignTaskRequest request = new AssignTaskRequest();
+        request.setProjectId(projectId);
+        request.setUserId(userId);
+
+        ProjectMember assignedByMember = new ProjectMember();
+        assignedByMember.setProjectId(projectId);
+        assignedByMember.setUserId(userId);
+        assignedByMember.setRole(Role.OBSERVER);
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.of(assignedByMember));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () ->
+                taskService.assignTask(taskId, request, userId));
+
+        assertEquals("You must be a member or administrator of the project to assign tasks.", exception.getMessage());
+    }
+
+    @Test
+    void testAssignTask_WhenAssigneeNotMember() {
+        AssignTaskRequest request = new AssignTaskRequest();
+        request.setProjectId(projectId);
+        request.setUserId(UUID.randomUUID());
+
+        ProjectMember assignedByMember = new ProjectMember();
+        assignedByMember.setProjectId(projectId);
+        assignedByMember.setUserId(userId);
+        assignedByMember.setRole(Role.ADMIN);
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.of(assignedByMember));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, request.getUserId()))
+                .thenReturn(Optional.empty());
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () ->
+                taskService.assignTask(taskId, request, userId));
+
+        assertEquals("The user is not a member of this project.", exception.getMessage());
+    }
+
+    @Test
+    void testAssignTask_WhenAssigneeDifferentProject() {
+        AssignTaskRequest request = new AssignTaskRequest();
+        request.setProjectId(projectId);
+        request.setUserId(UUID.randomUUID());
+
+        ProjectMember assignedByMember = new ProjectMember();
+        assignedByMember.setProjectId(projectId);
+        assignedByMember.setUserId(userId);
+        assignedByMember.setRole(Role.ADMIN);
+
+        ProjectMember assigneeMember = new ProjectMember();
+        assigneeMember.setProjectId(UUID.randomUUID());
+        assigneeMember.setUserId(request.getUserId());
+        assigneeMember.setRole(Role.MEMBER);
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(testTask));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.of(assignedByMember));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, request.getUserId()))
+                .thenReturn(Optional.of(assigneeMember));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () ->
+                taskService.assignTask(taskId, request, userId));
+
+        assertEquals("The user must be a member of the same project as the task.", exception.getMessage());
+    }
+
+    @Test
+    void testGetTaskHistory_WhenTaskNotFound() {
+        when(taskRepository.findById(taskId)).thenReturn(Optional.empty());
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () ->
+                taskService.getTaskHistory(taskId, userId));
+
+        assertEquals("Task not found", exception.getMessage());
+    }
+
+    @Test
+    void testFindTaskDTOsByProjectId_WhenNotMember() {
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.empty());
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () ->
+                taskService.findTaskDTOsByProjectId(projectId, userId));
+
+        assertEquals("You must be a member of the project to view tasks.", exception.getMessage());
     }
 }
 

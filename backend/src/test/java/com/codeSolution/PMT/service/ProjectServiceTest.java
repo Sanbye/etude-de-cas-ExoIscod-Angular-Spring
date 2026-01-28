@@ -194,6 +194,102 @@ class ProjectServiceTest {
     }
 
     @Test
+    void testInviteMemberByEmail_WhenInviterNotAdmin() {
+        InviteMemberRequest request = new InviteMemberRequest();
+        request.setEmail("test@example.com");
+        request.setRole(Role.MEMBER);
+        UUID inviterId = UUID.randomUUID();
+
+        ProjectMember inviterMember = new ProjectMember();
+        inviterMember.setProjectId(projectId);
+        inviterMember.setUserId(inviterId);
+        inviterMember.setRole(Role.MEMBER);
+
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(testProject));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, inviterId))
+                .thenReturn(Optional.of(inviterMember));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () ->
+                projectService.inviteMemberByEmail(projectId, request, inviterId));
+
+        assertEquals("Only project administrators can invite members", exception.getMessage());
+        verify(userRepository, never()).findByEmail(anyString());
+    }
+
+    @Test
+    void testInviteMemberByEmail_WhenUserNotFound() {
+        InviteMemberRequest request = new InviteMemberRequest();
+        request.setEmail("missing@example.com");
+        request.setRole(Role.MEMBER);
+        UUID inviterId = UUID.randomUUID();
+
+        ProjectMember inviterMember = new ProjectMember();
+        inviterMember.setProjectId(projectId);
+        inviterMember.setUserId(inviterId);
+        inviterMember.setRole(Role.ADMIN);
+
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(testProject));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, inviterId))
+                .thenReturn(Optional.of(inviterMember));
+        when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () ->
+                projectService.inviteMemberByEmail(projectId, request, inviterId));
+
+        assertEquals("User with email missing@example.com not found", exception.getMessage());
+    }
+
+    @Test
+    void testInviteMemberByEmail_WhenUserAlreadyMember() {
+        InviteMemberRequest request = new InviteMemberRequest();
+        request.setEmail("test@example.com");
+        request.setRole(Role.MEMBER);
+        UUID inviterId = UUID.randomUUID();
+
+        ProjectMember inviterMember = new ProjectMember();
+        inviterMember.setProjectId(projectId);
+        inviterMember.setUserId(inviterId);
+        inviterMember.setRole(Role.ADMIN);
+
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(testProject));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, inviterId))
+                .thenReturn(Optional.of(inviterMember));
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
+        when(projectMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(true);
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () ->
+                projectService.inviteMemberByEmail(projectId, request, inviterId));
+
+        assertEquals("User is already a member of this project", exception.getMessage());
+        verify(projectMemberRepository, never()).save(any(ProjectMember.class));
+    }
+
+    @Test
+    void testInviteMemberByEmail_WhenRoleMissing() {
+        InviteMemberRequest request = new InviteMemberRequest();
+        request.setEmail("test@example.com");
+        request.setRole(null);
+        UUID inviterId = UUID.randomUUID();
+
+        ProjectMember inviterMember = new ProjectMember();
+        inviterMember.setProjectId(projectId);
+        inviterMember.setUserId(inviterId);
+        inviterMember.setRole(Role.ADMIN);
+
+        when(projectRepository.findById(projectId)).thenReturn(Optional.of(testProject));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, inviterId))
+                .thenReturn(Optional.of(inviterMember));
+        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
+        when(projectMemberRepository.existsByProjectIdAndUserId(projectId, userId)).thenReturn(false);
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () ->
+                projectService.inviteMemberByEmail(projectId, request, inviterId));
+
+        assertEquals("Role is required", exception.getMessage());
+        verify(projectMemberRepository, never()).save(any(ProjectMember.class));
+    }
+
+    @Test
     void testUpdateMemberRole_Success() {
         // Given
         UUID modifierId = UUID.randomUUID();
@@ -222,6 +318,50 @@ class ProjectServiceTest {
         verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, userId);
         verify(projectMemberRepository, times(1)).save(any(ProjectMember.class));
         verify(projectRepository, times(1)).findById(projectId);
+    }
+
+    @Test
+    void testUpdateMemberRole_WhenNotAdmin() {
+        UUID modifierId = UUID.randomUUID();
+        UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
+        request.setRole(Role.ADMIN);
+
+        ProjectMember modifierMember = new ProjectMember();
+        modifierMember.setProjectId(projectId);
+        modifierMember.setUserId(modifierId);
+        modifierMember.setRole(Role.MEMBER);
+
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, modifierId))
+                .thenReturn(Optional.of(modifierMember));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () ->
+                projectService.updateMemberRole(projectId, userId, request, modifierId));
+
+        assertEquals("Only project administrators can update member roles.", exception.getMessage());
+        verify(projectMemberRepository, never()).save(any(ProjectMember.class));
+    }
+
+    @Test
+    void testUpdateMemberRole_WhenRoleMissing() {
+        UUID modifierId = UUID.randomUUID();
+        UpdateMemberRoleRequest request = new UpdateMemberRoleRequest();
+        request.setRole(null);
+
+        ProjectMember modifierMember = new ProjectMember();
+        modifierMember.setProjectId(projectId);
+        modifierMember.setUserId(modifierId);
+        modifierMember.setRole(Role.ADMIN);
+
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, modifierId))
+                .thenReturn(Optional.of(modifierMember));
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.of(testProjectMember));
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () ->
+                projectService.updateMemberRole(projectId, userId, request, modifierId));
+
+        assertEquals("Role is required", exception.getMessage());
+        verify(projectMemberRepository, never()).save(any(ProjectMember.class));
     }
 
     @Test
@@ -254,6 +394,30 @@ class ProjectServiceTest {
         assertTrue(result.isPresent());
         assertEquals(Role.MEMBER, result.get());
         verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, userId);
+    }
+
+    @Test
+    void testGetMemberRole_WhenMemberMissing() {
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.empty());
+
+        Optional<Role> result = projectService.getMemberRole(projectId, userId);
+
+        assertTrue(result.isEmpty());
+        verify(projectMemberRepository, times(1)).findByProjectIdAndUserId(projectId, userId);
+    }
+
+    @Test
+    void testIsProjectAdminAndMember() {
+        when(projectMemberRepository.findByProjectIdAndUserId(projectId, userId))
+                .thenReturn(Optional.of(testProjectMember));
+
+        testProjectMember.setRole(Role.ADMIN);
+        assertTrue(projectService.isProjectAdmin(projectId, userId));
+        assertTrue(projectService.isProjectMember(projectId, userId));
+
+        testProjectMember.setRole(Role.OBSERVER);
+        assertFalse(projectService.isProjectMember(projectId, userId));
     }
 
     @Test

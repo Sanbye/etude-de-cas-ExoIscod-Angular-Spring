@@ -3,13 +3,14 @@ import { ProjectListComponent } from './project-list.component';
 import { ProjectService } from '../../services/project.service';
 import { of, throwError, Subject } from 'rxjs';
 import { Project } from '../../models/project.model';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { SessionService } from '../../services/session.service';
 
 describe('ProjectListComponent', () => {
   let component: ProjectListComponent;
   let fixture: ComponentFixture<ProjectListComponent>;
   let projectService: jasmine.SpyObj<ProjectService>;
+  let sessionServiceMock: Pick<SessionService, 'getCurrentUser'>;
 
   const mockProjects: Project[] = [
     { id: '1', name: 'Project 1', description: 'Description 1', startingDate: '2026-01-01' },
@@ -23,7 +24,7 @@ describe('ProjectListComponent', () => {
       'getProjectMembers'
     ]);
 
-    const sessionServiceMock: Pick<SessionService, 'getCurrentUser'> = {
+    sessionServiceMock = {
       getCurrentUser: () => null
     };
 
@@ -116,6 +117,64 @@ describe('ProjectListComponent', () => {
     const emptyElement = compiled.querySelector('.empty');
     expect(emptyElement).toBeTruthy();
     expect(emptyElement?.textContent).toContain('Aucun projet trouvé');
+  });
+
+  it('should load my projects and roles when user is logged in', () => {
+    const userId = 'user-1';
+    sessionServiceMock.getCurrentUser = () => ({ userId } as any);
+
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    projectService.getProjectsByMember.and.returnValue(of([mockProjects[0]]));
+    projectService.getProjectMembers.and.returnValue(of([
+      { userId, role: 'ADMIN' }
+    ]));
+
+    fixture.detectChanges();
+
+    expect(component.myProjects.length).toBe(1);
+    expect(component.otherProjects.length).toBe(1);
+    expect(component.getRoleLabel(mockProjects[0].id!)).toBe('ADMIN');
+    expect(component.getRoleBadgeClass(mockProjects[0].id!)).toBe('badge--admin');
+  });
+
+  it('should handle error when loading my projects', () => {
+    const userId = 'user-1';
+    sessionServiceMock.getCurrentUser = () => ({ userId } as any);
+
+    projectService.getAllProjects.and.returnValue(of(mockProjects));
+    projectService.getProjectsByMember.and.returnValue(throwError(() => new Error('API error')));
+
+    fixture.detectChanges();
+
+    expect(component.myProjects.length).toBe(0);
+    expect(component.otherProjects.length).toBe(mockProjects.length);
+    expect(component.getRoleLabel(mockProjects[0].id!)).toBe('Rôle inconnu');
+    expect(component.getRoleBadgeClass(mockProjects[0].id!)).toBe('badge--unknown');
+  });
+
+  it('should handle missing role values gracefully', () => {
+    component.myProjectRoles = {};
+    expect(component.getRoleLabel('missing')).toBe('Rôle inconnu');
+    expect(component.getRoleBadgeClass('missing')).toBe('badge--unknown');
+  });
+
+  it('should navigate to project details', () => {
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigate');
+
+    component.viewProject('project-123');
+    expect(router.navigate).toHaveBeenCalledWith(['/projects', 'project-123']);
+  });
+
+  it('should handle loadMyProjectRoles when no valid project ids', () => {
+    component.myProjects = [{ name: 'No Id Project' } as Project];
+    (component as any).loadMyProjectRoles('user-1');
+    expect(component.myProjectRoles).toEqual({});
+  });
+
+  it('should return viewer badge class when role is VIEWER', () => {
+    component.myProjectRoles = { 'p1': 'VIEWER' };
+    expect(component.getRoleBadgeClass('p1')).toBe('badge--viewer');
   });
 });
 
