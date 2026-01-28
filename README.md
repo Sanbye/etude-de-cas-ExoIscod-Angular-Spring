@@ -152,7 +152,8 @@ cd backend
 ```bash
 # Sur Windows (PowerShell)
 .\mvnw.cmd clean install
-
+```
+```bash
 # Sur Linux/Mac
 ./mvnw clean install
 ```
@@ -161,7 +162,8 @@ cd backend
 ```bash
 # Sur Windows (PowerShell)
 .\mvnw.cmd spring-boot:run
-
+```
+```bash
 # Sur Linux/Mac
 ./mvnw spring-boot:run
 ```

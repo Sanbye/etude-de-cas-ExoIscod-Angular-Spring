@@ -4,6 +4,7 @@ import { ProjectService } from '../../services/project.service';
 import { of, throwError, Subject } from 'rxjs';
 import { Project } from '../../models/project.model';
 import { provideRouter } from '@angular/router';
+import { SessionService } from '../../services/session.service';
 
 describe('ProjectListComponent', () => {
   let component: ProjectListComponent;
@@ -16,12 +17,24 @@ describe('ProjectListComponent', () => {
   ];
 
   beforeEach(async () => {
-    const projectServiceSpy = jasmine.createSpyObj('ProjectService', ['getAllProjects']);
+    const projectServiceSpy = jasmine.createSpyObj('ProjectService', [
+      'getAllProjects',
+      'getProjectsByMember',
+      'getProjectMembers'
+    ]);
+
+    const sessionServiceMock: Pick<SessionService, 'getCurrentUser'> = {
+      getCurrentUser: () => null
+    };
+
+    projectServiceSpy.getProjectsByMember.and.returnValue(of([]));
+    projectServiceSpy.getProjectMembers.and.returnValue(of([]));
 
     await TestBed.configureTestingModule({
       imports: [ProjectListComponent],
       providers: [
         { provide: ProjectService, useValue: projectServiceSpy },
+        { provide: SessionService, useValue: sessionServiceMock },
         provideRouter([])
       ]
     }).compileComponents();
